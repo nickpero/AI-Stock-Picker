@@ -77,3 +77,18 @@ def test_portfolio_backtest_caps_aggregate_open_stop_risk():
 def test_portfolio_backtest_rejects_excessive_aggregate_risk_limit():
     with pytest.raises(ValueError):
         portfolio_backtest({"AAA": make_history()}, max_portfolio_risk_fraction=0.20)
+
+
+@pytest.mark.parametrize("strategy", ["momentum", "breakout", "pullback_reclaim"])
+def test_portfolio_backtest_supports_comparison_strategies(strategy):
+    result = portfolio_backtest(
+        {"AAA": make_history(), "BBB": make_history(start=30)},
+        initial_capital=1000, strategy=strategy,
+    )
+    assert result["strategy"] == strategy
+    assert result["final_equity"] > 0
+
+
+def test_portfolio_backtest_rejects_unknown_strategy():
+    with pytest.raises(ValueError):
+        portfolio_backtest({"AAA": make_history()}, strategy="guess")
