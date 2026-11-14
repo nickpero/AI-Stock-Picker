@@ -27,6 +27,15 @@ PYTHONPATH=src python -m stock_picker.backtest AAPL --period 5y --holding 5 --co
 pytest -q
 ```
 
+## Run a GitHub portfolio simulation
+
+1. Open the repository's **Actions** tab.
+2. Select **Portfolio Simulation** and choose **Run workflow**.
+3. Select one currency (EUR, USD or CHF), historical period, starting capital, holding period, maximum open positions and estimated transaction costs.
+4. When the workflow finishes, download the `portfolio-simulation-...` artifact. It contains the JSON report, including the equity curve and trade-by-trade details.
+
+Run one currency at a time. Results from separate currencies must not be added together until FX conversion is implemented. The workflow downloads historical data from Yahoo Finance at run time; missing symbols and download errors are listed in the report.
+
 ## Current limitations
 - The universe is a small starter watchlist, not a complete US/EU market scan.
 - Yahoo Finance coverage, timestamps, corporate actions, and symbol mapping can be incomplete or delayed.
