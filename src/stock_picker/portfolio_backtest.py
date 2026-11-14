@@ -106,7 +106,7 @@ def _prepare_history(history: pd.DataFrame, symbol: str = "UNKNOWN", strategy: s
     frame["sma50"] = frame["Close"].rolling(50, min_periods=50).mean()
     frame["sma200"] = frame["Close"].rolling(200, min_periods=200).mean()
     frame["atr_pct"] = frame["atr14"] / frame["Close"]
-    frame["atr_pct_ceiling"] = frame["atr_pct"].rolling(100, min_periods=40).quantile(0.80)
+    frame["atr_pct_ceiling"] = frame["atr_pct"].rolling(100, min_periods=40).quantile(0.80).shift(1)
     prior_high20 = frame["High"].rolling(20, min_periods=20).max().shift(1)
     if strategy == "momentum":
         frame["signal"] = (frame["Close"] > frame["sma20"]) & (frame["momentum20"] > 0)
@@ -142,6 +142,7 @@ def portfolio_backtest(
     stop_atr: float = 1.5,
     target_r: float = 2.0,
     round_trip_cost_bps: float = 20.0,
+    start_date: str | None = None,
 ) -> dict:
     """Simulate cash, concurrent positions, integer shares, costs and daily exits.
 
@@ -169,6 +170,11 @@ def portfolio_backtest(
     data_quality = {s: {"bars_used": len(f), "malformed_ohlc_rows_excluded": int(f.attrs.get("dropped_ohlc_rows", 0))} for s, f in frames.items()}
     # Daily bars from different exchanges need not share every holiday.
     calendar = sorted(set().union(*(set(f.index) for f in frames.values())))
+    if start_date:
+        cutoff = pd.Timestamp(start_date).date()
+        calendar = [day for day in calendar if pd.Timestamp(day).date() >= cutoff]
+        if not calendar:
+            raise ValueError(f"No market sessions on or after start_date={start_date}")
     half_cost = round_trip_cost_bps / 20000.0
     cash = float(initial_capital)
     positions: dict[str, Position] = {}
@@ -333,6 +339,7 @@ def portfolio_backtest(
     losses = trade_frame[trade_frame["pnl"] <= 0]["pnl"] if trades else pd.Series(dtype=float)
     result = {
         "strategy": strategy,
+        "evaluation_start_date": pd.Timestamp(calendar[0]).date().isoformat() if calendar else None,
         "execution_model": "prior_close_signal_next_open_fill; gap_exits_before_open_entries; intraday_exits_after_entries; stop_first_same_bar",
         "initial_capital": round(initial_capital, 2),
         "final_equity": round(final_equity, 2),
@@ -375,6 +382,7 @@ def main() -> None:
                         help="Run one currency at a time; FX conversion is not yet implemented")
     parser.add_argument("--capital", type=float, default=1000.0)
     parser.add_argument("--holding", type=int, default=5)
+    parser.add_argument("--start-date", help="Evaluate portfolio only from this date; earlier bars warm up indicators")
     parser.add_argument("--max-positions", type=int, default=4)
     parser.add_argument("--risk-fraction", type=float, default=0.01)
     parser.add_argument("--max-portfolio-risk-fraction", type=float, default=0.02)
@@ -421,6 +429,7 @@ def main() -> None:
         strategy=args.strategy,
         max_position_fraction=args.max_position_fraction,
         round_trip_cost_bps=args.cost_bps,
+        start_date=args.start_date,
     )
     report = {
         "strategy": args.strategy,
@@ -432,6 +441,7 @@ def main() -> None:
         }[args.strategy],
         "data_provider": "Yahoo Finance via yfinance",
         "period_requested": args.period,
+        "evaluation_start_date": args.start_date,
         "account_currency": args.currency,
         "symbols_requested": len(requested_symbols),
         "symbols_downloaded": len(histories),
