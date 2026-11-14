@@ -1,0 +1,9 @@
+[project]
+name = "ai-stock-picker"
+version = "0.1.0"
+description = "Research and ranking engine for short-term equity setups"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
