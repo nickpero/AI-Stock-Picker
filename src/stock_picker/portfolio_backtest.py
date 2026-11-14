@@ -32,20 +32,31 @@ class Position:
     sessions_held: int = 0
 
 
-def _prepare_history(history: pd.DataFrame) -> pd.DataFrame:
+def _prepare_history(history: pd.DataFrame, symbol: str = "UNKNOWN") -> pd.DataFrame:
     required = {"Open", "High", "Low", "Close"}
     if history is None or not required.issubset(history.columns):
-        raise ValueError(f"Each history must contain {sorted(required)}")
+        raise ValueError(f"{symbol}: history must contain {sorted(required)}")
     frame = history[list(required)].copy().sort_index()
-    frame = frame[~frame.index.duplicated(keep="last")].dropna()
-    if len(frame) < 25:
-        raise ValueError("Each symbol needs at least 25 complete daily bars")
+    frame = frame[~frame.index.duplicated(keep="last")]
+    for column in required:
+        frame[column] = pd.to_numeric(frame[column], errors="coerce")
+    frame = frame.replace([np.inf, -np.inf], np.nan).dropna()
     if (frame[["Open", "High", "Low", "Close"]] <= 0).any().any():
-        raise ValueError("OHLC prices must be positive")
-    if (frame["High"] < frame[["Open", "Close", "Low"]].max(axis=1)).any():
-        raise ValueError("High price is inconsistent with OHLC values")
-    if (frame["Low"] > frame[["Open", "Close", "High"]].min(axis=1)).any():
-        raise ValueError("Low price is inconsistent with OHLC values")
+        raise ValueError(f"{symbol}: OHLC prices must be positive")
+
+    # Exclude malformed vendor bars rather than silently changing their prices.
+    scale = frame[["Open", "High", "Low", "Close"]].abs().max(axis=1).clip(lower=1.0)
+    tolerance = scale * 1e-5
+    bad_high = frame["High"] + tolerance < frame[["Open", "Close", "Low"]].max(axis=1)
+    bad_low = frame["Low"] - tolerance > frame[["Open", "Close", "High"]].min(axis=1)
+    bad = bad_high | bad_low
+    dropped = int(bad.sum())
+    frame = frame.loc[~bad].copy()
+    if len(frame) < 25:
+        raise ValueError(
+            f"{symbol}: fewer than 25 coherent daily bars after excluding {dropped} malformed OHLC rows"
+        )
+    frame.attrs["dropped_ohlc_rows"] = dropped
 
     previous_close = frame["Close"].shift(1)
     true_range = pd.concat(
@@ -92,7 +103,8 @@ def portfolio_backtest(
     if stop_atr <= 0 or target_r <= 0 or not 0 <= round_trip_cost_bps <= 1000:
         raise ValueError("Invalid stop, target or transaction cost")
 
-    frames = {str(s): _prepare_history(h) for s, h in histories.items()}
+    frames = {str(s): _prepare_history(h, str(s)) for s, h in histories.items()}
+    data_quality = {s: {"bars_used": len(f), "malformed_ohlc_rows_excluded": int(f.attrs.get("dropped_ohlc_rows", 0))} for s, f in frames.items()}
     # Daily bars from different exchanges need not share every holiday.
     calendar = sorted(set().union(*(set(f.index) for f in frames.values())))
     half_cost = round_trip_cost_bps / 20000.0
@@ -300,6 +312,7 @@ def portfolio_backtest(
         "average_trade_pnl": round(float(trade_frame["pnl"].mean()), 4) if trades else 0.0,
         "max_positions": max((int(x) for x in pd.DataFrame(equity_rows)["open_positions"]), default=0) if equity_rows else 0,
         "round_trip_cost_bps": round_trip_cost_bps,
+        "data_quality_by_symbol": data_quality,
         "trades_detail": trades,
         "equity_curve": [
             {"date": pd.Timestamp(d).date().isoformat(), "equity": round(float(v), 4)}
