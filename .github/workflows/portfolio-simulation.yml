@@ -19,11 +19,6 @@ on:
         required: true
         default: "1000"
         type: string
-      holding:
-        description: "Maximum holding sessions (1-15)"
-        required: true
-        default: "5"
-        type: string
       max_positions:
         description: "Maximum concurrent positions"
         required: true
@@ -45,6 +40,7 @@ jobs:
       fail-fast: false
       matrix:
         strategy: [momentum, breakout, pullback_reclaim, regime_adaptive]
+        holding: [1, 2, 3, 5]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -56,7 +52,7 @@ jobs:
           SIM_PERIOD: ${{ inputs.period || '5y' }}
           SIM_CURRENCY: ${{ inputs.currency || 'EUR' }}
           SIM_CAPITAL: ${{ inputs.capital || '1000' }}
-          SIM_HOLDING: ${{ inputs.holding || '5' }}
+          SIM_HOLDING: ${{ matrix.holding }}
           SIM_MAX_POSITIONS: ${{ inputs.max_positions || '4' }}
           SIM_COST_BPS: ${{ inputs.cost_bps || '20' }}
           SIM_STRATEGY: ${{ matrix.strategy }}
@@ -71,9 +67,9 @@ jobs:
             --max-positions "$SIM_MAX_POSITIONS" \
             --strategy "$SIM_STRATEGY" \
             --cost-bps "$SIM_COST_BPS" \
-            --output "reports/portfolio-backtest-$SIM_STRATEGY.json"
+            --output "reports/portfolio-backtest-$SIM_STRATEGY-${SIM_HOLDING}d.json"
       - uses: actions/upload-artifact@v4
         with:
-          name: portfolio-simulation-${{ matrix.strategy }}-${{ github.run_number }}
-          path: reports/portfolio-backtest-${{ matrix.strategy }}.json
+          name: portfolio-simulation-${{ matrix.strategy }}-${{ matrix.holding }}d-${{ github.run_number }}
+          path: reports/portfolio-backtest-${{ matrix.strategy }}-${{ matrix.holding }}d.json
           if-no-files-found: error
