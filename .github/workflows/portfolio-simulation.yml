@@ -2,54 +2,9 @@ name: Portfolio Simulation
 
 on:
   workflow_dispatch:
-    inputs:
-      currency:
-        description: "Run one market currency at a time (FX conversion is not included)"
-        required: true
-        type: choice
-        options:
-          - EUR
-          - USD
-          - CHF
-      period:
-        description: "Historical window"
-        required: true
-        type: choice
-        default: "5y"
-        options:
-          - "2y"
-          - "5y"
-          - "10y"
-      capital:
-        description: "Starting capital in the selected currency"
-        required: true
-        default: "1000"
-        type: string
-      holding:
-        description: "Maximum holding sessions (1-15)"
-        required: true
-        default: "5"
-        type: string
-      max_positions:
-        description: "Maximum concurrent positions"
-        required: true
-        default: "4"
-        type: string
-      strategy:
-        description: "Signal model to compare on the same universe and dates"
-        required: true
-        type: choice
-        default: momentum
-        options:
-          - momentum
-          - breakout
-          - pullback_reclaim
-          - regime_adaptive
-      cost_bps:
-        description: "Estimated round-trip transaction cost in basis points"
-        required: true
-        default: "20"
-        type: string
+  push:
+    paths:
+      - ".github/workflows/portfolio-simulation.yml"
 
 permissions:
   contents: read
@@ -57,6 +12,14 @@ permissions:
 jobs:
   simulate:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        strategy:
+          - momentum
+          - breakout
+          - pullback_reclaim
+          - regime_adaptive
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -65,13 +28,13 @@ jobs:
       - run: pip install -r requirements.txt
       - name: Run portfolio simulation
         env:
-          SIM_PERIOD: ${{ inputs.period }}
-          SIM_CURRENCY: ${{ inputs.currency }}
-          SIM_CAPITAL: ${{ inputs.capital }}
-          SIM_HOLDING: ${{ inputs.holding }}
-          SIM_MAX_POSITIONS: ${{ inputs.max_positions }}
-          SIM_COST_BPS: ${{ inputs.cost_bps }}
-          SIM_STRATEGY: ${{ inputs.strategy }}
+          SIM_PERIOD: ${{ inputs.period || '5y' }}
+          SIM_CURRENCY: ${{ inputs.currency || 'EUR' }}
+          SIM_CAPITAL: ${{ inputs.capital || '1000' }}
+          SIM_HOLDING: ${{ inputs.holding || '5' }}
+          SIM_MAX_POSITIONS: ${{ inputs.max_positions || '4' }}
+          SIM_COST_BPS: ${{ inputs.cost_bps || '20' }}
+          SIM_STRATEGY: ${{ matrix.strategy }}
         run: |
           PYTHONPATH=src python -m stock_picker.portfolio_backtest \
             --universe config/universe.json \
@@ -82,9 +45,9 @@ jobs:
             --max-positions "$SIM_MAX_POSITIONS" \
             --strategy "$SIM_STRATEGY" \
             --cost-bps "$SIM_COST_BPS" \
-            --output reports/portfolio-backtest.json
+            --output "reports/portfolio-backtest-$SIM_STRATEGY.json"
       - uses: actions/upload-artifact@v4
         with:
-          name: portfolio-simulation-${{ inputs.currency }}-${{ inputs.strategy }}-${{ github.run_number }}
-          path: reports/portfolio-backtest.json
+          name: portfolio-simulation-EUR-$${{ matrix.strategy }}-${{ github.run_number }}
+          path: reports/portfolio-backtest-$${{ matrix.strategy }}.json
           if-no-files-found: error
