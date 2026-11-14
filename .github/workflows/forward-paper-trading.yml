@@ -1,0 +1,48 @@
+name: Forward Paper Trading
+
+on:
+  schedule:
+    # After US regular-session close (winter UTC); only weekdays.
+    - cron: "30 22 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: forward-paper-trading
+  cancel-in-progress: false
+
+jobs:
+  paper-trading:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Advance paper portfolios
+        run: |
+          PYTHONPATH=src python -m stock_picker.paper_trading \
+            --state state/paper-trading.json \
+            --universe config/universe.json \
+            --output reports/paper-trading-latest.json
+      - name: Persist ledger
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add state/paper-trading.json
+          if git diff --cached --quiet; then
+            echo "No ledger changes to commit"
+          else
+            git commit -m "Update forward paper-trading ledger"
+            git push
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: forward-paper-trading-${{ github.run_number }}
+          path: reports/paper-trading-latest.json
+          if-no-files-found: error
