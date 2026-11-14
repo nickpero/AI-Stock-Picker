@@ -2,9 +2,38 @@ name: Portfolio Simulation
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - ".github/workflows/portfolio-simulation.yml"
+    inputs:
+      currency:
+        description: "Run one market currency at a time (FX conversion is not included)"
+        required: true
+        type: choice
+        options: [EUR, USD, CHF]
+      period:
+        description: "Historical window"
+        required: true
+        type: choice
+        default: "5y"
+        options: ["2y", "5y", "10y"]
+      capital:
+        description: "Starting capital"
+        required: true
+        default: "1000"
+        type: string
+      holding:
+        description: "Maximum holding sessions (1-15)"
+        required: true
+        default: "5"
+        type: string
+      max_positions:
+        description: "Maximum concurrent positions"
+        required: true
+        default: "4"
+        type: string
+      cost_bps:
+        description: "Round-trip transaction cost in basis points"
+        required: true
+        default: "20"
+        type: string
 
 permissions:
   contents: read
@@ -15,11 +44,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        strategy:
-          - momentum
-          - breakout
-          - pullback_reclaim
-          - regime_adaptive
+        strategy: [momentum, breakout, pullback_reclaim, regime_adaptive]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -36,6 +61,7 @@ jobs:
           SIM_COST_BPS: ${{ inputs.cost_bps || '20' }}
           SIM_STRATEGY: ${{ matrix.strategy }}
         run: |
+          mkdir -p reports
           PYTHONPATH=src python -m stock_picker.portfolio_backtest \
             --universe config/universe.json \
             --period "$SIM_PERIOD" \
@@ -48,6 +74,6 @@ jobs:
             --output "reports/portfolio-backtest-$SIM_STRATEGY.json"
       - uses: actions/upload-artifact@v4
         with:
-          name: portfolio-simulation-EUR-$${{ matrix.strategy }}-${{ github.run_number }}
-          path: reports/portfolio-backtest-$${{ matrix.strategy }}.json
+          name: portfolio-simulation-${{ matrix.strategy }}-${{ github.run_number }}
+          path: reports/portfolio-backtest-${{ matrix.strategy }}.json
           if-no-files-found: error
