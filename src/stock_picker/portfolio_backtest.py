@@ -166,75 +166,58 @@ def portfolio_backtest(
     equity_rows: list[dict] = []
     last_prices: dict[str, float] = {}
 
+    def record_exit(symbol, pos, day, price, reason):
+        nonlocal cash
+        proceeds = pos.shares * price
+        exit_fee = proceeds * half_cost
+        entry_cost = pos.shares * pos.entry_price
+        entry_fee = entry_cost * half_cost
+        cash += proceeds - exit_fee
+        pnl = proceeds - exit_fee - entry_cost - entry_fee
+        trades.append({
+            "symbol": symbol, "entry_date": pos.entry_date.date().isoformat(),
+            "exit_date": pd.Timestamp(day).date().isoformat(),
+            "entry_price": round(pos.entry_price, 6), "exit_price": round(price, 6),
+            "shares": pos.shares, "pnl": round(pnl, 4),
+            "return_pct": round(pnl / (entry_cost + entry_fee) * 100, 4),
+            "exit_reason": reason, "sessions_held": pos.sessions_held,
+        })
+
     for day in calendar:
-        # Carry forward the last close for markets that are shut on this date.
-        for symbol, frame in frames.items():
-            if day in frame.index:
-                last_prices[symbol] = float(frame.loc[day, "Close"])
-
-        # Manage existing positions first; no same-day re-entry after an exit.
-        exited_today: set[str] = set()
+        # Opening phase: only opening prices and prior completed closes are known.
+        todays = {s: f.loc[day] for s, f in frames.items() if day in f.index}
+        exited_today = set()
         for symbol, pos in list(positions.items()):
-            frame = frames[symbol]
-            if day not in frame.index:
+            if symbol not in todays:
                 continue
-            bar = frame.loc[day]
-            pos.sessions_held += 1
-            o, h, l, c = (float(bar[k]) for k in ("Open", "High", "Low", "Close"))
-            exit_price = None
-            reason = None
-            if o <= pos.stop:
-                exit_price, reason = o, "stop_gap"
-            elif o >= pos.target:
-                exit_price, reason = o, "target_gap"
-            elif l <= pos.stop and h >= pos.target:
-                exit_price, reason = pos.stop, "stop_and_target_same_bar_stop_first"
-            elif l <= pos.stop:
-                exit_price, reason = pos.stop, "stop"
-            elif h >= pos.target:
-                exit_price, reason = pos.target, "target"
-            elif pos.sessions_held >= holding_sessions:
-                exit_price, reason = c, "time_exit"
-
-            if exit_price is not None:
-                gross_proceeds = pos.shares * exit_price
-                exit_fee = gross_proceeds * half_cost
-                cash += gross_proceeds - exit_fee
-                entry_cost = pos.shares * pos.entry_price
-                entry_fee = entry_cost * half_cost
-                pnl = gross_proceeds - exit_fee - entry_cost - entry_fee
-                trades.append({
-                    "symbol": symbol,
-                    "entry_date": pos.entry_date.date().isoformat(),
-                    "exit_date": pd.Timestamp(day).date().isoformat(),
-                    "entry_price": round(pos.entry_price, 6),
-                    "exit_price": round(exit_price, 6),
-                    "shares": pos.shares,
-                    "pnl": round(pnl, 4),
-                    "return_pct": round(pnl / (entry_cost + entry_fee) * 100, 4),
-                    "exit_reason": reason,
-                    "sessions_held": pos.sessions_held,
-                })
+            op = float(todays[symbol]["Open"])
+            if op <= pos.stop:
+                record_exit(symbol, pos, day, op, "stop_gap")
+                del positions[symbol]
+                exited_today.add(symbol)
+            elif op >= pos.target:
+                record_exit(symbol, pos, day, op, "target_gap")
                 del positions[symbol]
                 exited_today.add(symbol)
 
-        # Signals use the previous completed bar only; entry is today's open.
         candidates = []
         for symbol, frame in frames.items():
-            if symbol in positions or symbol in exited_today or day not in frame.index:
+            if symbol in positions or symbol in exited_today or symbol not in todays:
                 continue
             loc = frame.index.get_loc(day)
             if not isinstance(loc, (int, np.integer)) or loc == 0:
                 continue
-            signal_bar = frame.iloc[loc - 1]
-            today = frame.iloc[loc]
-            if bool(signal_bar["signal"]) and pd.notna(signal_bar["atr14"]):
-                score = float(signal_bar["signal_score"])
+            sig = frame.iloc[loc - 1]
+            if bool(sig["signal"]) and pd.notna(sig["atr14"]):
+                score = float(sig["signal_score"])
                 if np.isfinite(score):
-                    candidates.append((score, symbol, today, float(signal_bar["atr14"])))
+                    candidates.append((score, symbol, todays[symbol], float(sig["atr14"])))
         candidates.sort(key=lambda x: (-x[0], x[1]))
 
-        # Mark the portfolio using last known closes, including exchanges shut today.
+        def open_mark(s):
+            return float(todays[s]["Open"]) if s in todays else last_prices.get(s, 0.0)
+
+        # Fill at today's open; intraday OHLC cannot free capacity before these fills.
         for _, symbol, bar, atr in candidates:
             if len(positions) >= max_positions:
                 break
@@ -242,72 +225,56 @@ def portfolio_backtest(
             stop = entry - stop_atr * atr
             if entry <= 0 or stop <= 0:
                 continue
-            risk_per_share = entry - stop
-            market_value = sum(p.shares * last_prices[s] for s, p in positions.items() if s in last_prices)
-            equity_before_entry = cash + market_value
-            open_stop_risk = sum(p.shares * p.risk_per_share for p in positions.values())
-            portfolio_risk_capacity = max(0.0, equity_before_entry * max_portfolio_risk_fraction - open_stop_risk)
-            risk_budget = min(equity_before_entry * risk_fraction, portfolio_risk_capacity)
-            by_risk = floor(risk_budget / risk_per_share)
-            by_concentration = floor(equity_before_entry * max_position_fraction / entry)
-            by_cash = floor(cash / (entry * (1 + half_cost)))
-            shares = min(by_risk, by_concentration, by_cash)
+            rps = entry - stop
+            mv = sum(p.shares * open_mark(s) for s, p in positions.items())
+            eq_open = cash + mv
+            risk_open = sum(p.shares * p.risk_per_share for p in positions.values())
+            risk_capacity = max(0.0, eq_open * max_portfolio_risk_fraction - risk_open)
+            budget = min(eq_open * risk_fraction, risk_capacity)
+            shares = min(floor(budget / rps), floor(eq_open * max_position_fraction / entry),
+                         floor(cash / (entry * (1 + half_cost))))
             if shares < 1:
                 continue
             cost = shares * entry
-            fee = cost * half_cost
-            cash -= cost + fee
-            pos = Position(
-                symbol=symbol,
-                entry_date=pd.Timestamp(day),
-                entry_price=entry,
-                shares=shares,
-                stop=stop,
-                target=entry + target_r * risk_per_share,
-                risk_per_share=risk_per_share,
-                sessions_held=1,
+            cash -= cost + cost * half_cost
+            positions[symbol] = Position(
+                symbol=symbol, entry_date=pd.Timestamp(day), entry_price=entry,
+                shares=shares, stop=stop, target=entry + target_r * rps,
+                risk_per_share=rps, sessions_held=1,
             )
-            # Entry-day OHLC is checked after the opening fill. If both levels
-            # are touched, assume stop first because daily bars lack sequencing.
-            high, low = float(bar["High"]), float(bar["Low"])
-            entry_exit = None
-            entry_reason = None
-            if low <= pos.stop and high >= pos.target:
-                entry_exit, entry_reason = pos.stop, "stop_and_target_same_bar_stop_first"
-            elif low <= pos.stop:
-                entry_exit, entry_reason = pos.stop, "stop_entry_day"
-            elif high >= pos.target:
-                entry_exit, entry_reason = pos.target, "target_entry_day"
-            if entry_exit is not None:
-                proceeds = shares * entry_exit
-                exit_fee = proceeds * half_cost
-                cash += proceeds - exit_fee
-                entry_cost = shares * entry
-                entry_fee = entry_cost * half_cost
-                pnl = proceeds - exit_fee - entry_cost - entry_fee
-                trades.append({
-                    "symbol": symbol,
-                    "entry_date": pd.Timestamp(day).date().isoformat(),
-                    "exit_date": pd.Timestamp(day).date().isoformat(),
-                    "entry_price": round(entry, 6),
-                    "exit_price": round(entry_exit, 6),
-                    "shares": shares,
-                    "pnl": round(pnl, 4),
-                    "return_pct": round(pnl / (entry_cost + entry_fee) * 100, 4),
-                    "exit_reason": entry_reason,
-                    "sessions_held": 1,
-                })
-            else:
-                positions[symbol] = pos
 
-        # Use carried-forward marks for positions whose exchange is closed today.
-        market_value = sum(p.shares * last_prices[s] for s, p in positions.items() if s in last_prices)
-        marked_equity = cash + market_value
-        open_stop_risk = sum(p.shares * p.risk_per_share for p in positions.values())
+        # Intraday phase: process all stops/targets only after opening orders.
+        for symbol, pos in list(positions.items()):
+            if symbol not in todays:
+                continue
+            bar = todays[symbol]
+            hi, lo, cl = (float(bar[k]) for k in ("High", "Low", "Close"))
+            if pos.entry_date != pd.Timestamp(day):
+                pos.sessions_held += 1
+            price = reason = None
+            if lo <= pos.stop and hi >= pos.target:
+                price, reason = pos.stop, "stop_and_target_same_bar_stop_first"
+            elif lo <= pos.stop:
+                price, reason = pos.stop, "stop"
+            elif hi >= pos.target:
+                price, reason = pos.target, "target"
+            elif pos.sessions_held >= holding_sessions:
+                price, reason = cl, "time_exit"
+            if price is not None:
+                record_exit(symbol, pos, day, price, reason)
+                del positions[symbol]
+                exited_today.add(symbol)
+
+        # Only now do today's closing prices become available as portfolio marks.
+        for symbol, bar in todays.items():
+            last_prices[symbol] = float(bar["Close"])
+        mv = sum(p.shares * last_prices[s] for s, p in positions.items() if s in last_prices)
+        marked_equity = cash + mv
+        open_risk = sum(p.shares * p.risk_per_share for p in positions.values())
         equity_rows.append({
             "date": pd.Timestamp(day), "equity": marked_equity, "cash": cash,
             "open_positions": len(positions),
-            "open_stop_risk_pct": (open_stop_risk / marked_equity * 100) if marked_equity > 0 else 0.0,
+            "open_stop_risk_pct": open_risk / marked_equity * 100 if marked_equity > 0 else 0.0,
         })
 
     # Liquidate remaining positions at their last available close, with costs.
@@ -356,6 +323,7 @@ def portfolio_backtest(
     losses = trade_frame[trade_frame["pnl"] <= 0]["pnl"] if trades else pd.Series(dtype=float)
     result = {
         "strategy": strategy,
+        "execution_model": "prior_close_signal_next_open_fill; gap_exits_before_open_entries; intraday_exits_after_entries; stop_first_same_bar",
         "initial_capital": round(initial_capital, 2),
         "final_equity": round(final_equity, 2),
         "total_return_pct": round(total_return * 100, 3),
