@@ -14,7 +14,7 @@ Independent research and decision-support engine for short-term equity setups (2
 - Illustrative ATR-based stop/targets and share sizing, capped by account-risk and concentration limits.
 - Portfolio-level cash simulation with next-session open entries, ATR stops/targets, transaction costs and integer-share sizing.
 - Aggregate open stop-risk cap (default 2% of marked equity) alongside per-trade risk limits.
-- Three comparable signal modes: momentum, 20-session breakout and pullback/reclaim above SMA50.
+- Four comparable signal modes, including an experimental regime-adaptive filter that trades established long-term uptrends and avoids unusually high volatility.
 - Equal-weight benchmark calculated on the same available symbols and dates.
 - JSON scan output with UTC generation time and latest data date.
 - Unit tests and GitHub Actions workflow (push, pull request, and manual trigger).
@@ -42,7 +42,7 @@ Run one currency at a time. Results from separate currencies must not be added t
 - The universe is a small starter watchlist, not a complete US/EU market scan.
 - Yahoo Finance coverage, timestamps, corporate actions, and symbol mapping can be incomplete or delayed.
 - The scoring weights are heuristic and have not been optimized or validated for predictive performance.
-- Daily OHLC bars cannot reconstruct intraday sequencing; stop is assumed first if stop and target are both touched in one session.
+- Execution follows market phases: prior-close signal, next-open fill, opening-gap exits, then intraday stop/target checks; daily OHLC still cannot reconstruct intraday sequencing, so stop is assumed first if both levels trade.
 - The benchmark is frictionless and equal-weight daily rebalanced; it is a reference, not an executable portfolio.
 - FX conversion, taxes, borrow, delisted securities, market impact and point-in-time constituents are not modeled.
 - News catalysts, primary-source verification, Telegram delivery, and a proper walk-forward evaluation are not implemented yet.
@@ -51,7 +51,7 @@ Run one currency at a time. Results from separate currencies must not be added t
 ## Next milestones
 1. Validate data quality and broaden a liquid, survivorship-aware US/EU universe.
 2. Add news/catalyst ingestion with timestamped primary sources.
-3. Run all three signal modes on identical periods and compare them with the equal-weight benchmark.
+3. Run all four signal modes on identical periods and compare them with the equal-weight benchmark.
 4. Add walk-forward and out-of-sample evaluation before any paper-trading use.
 5. Add catalyst-aware ranking and calibrated probability estimates only if supported by validation.
 6. Add Telegram reporting after the signal and risk layers pass paper-trading checks.
