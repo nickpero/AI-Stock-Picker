@@ -81,6 +81,7 @@ def portfolio_backtest(
     max_positions: int = 4,
     risk_fraction: float = 0.01,
     max_position_fraction: float = 0.25,
+    max_portfolio_risk_fraction: float = 0.02,
     stop_atr: float = 1.5,
     target_r: float = 2.0,
     round_trip_cost_bps: float = 20.0,
@@ -100,6 +101,8 @@ def portfolio_backtest(
         raise ValueError("risk_fraction must be in (0, 5%]")
     if not 0 < max_position_fraction <= 1:
         raise ValueError("max_position_fraction must be in (0, 1]")
+    if not 0 < max_portfolio_risk_fraction <= 0.10:
+        raise ValueError("max_portfolio_risk_fraction must be in (0, 10%]")
     if stop_atr <= 0 or target_r <= 0 or not 0 <= round_trip_cost_bps <= 1000:
         raise ValueError("Invalid stop, target or transaction cost")
 
@@ -181,10 +184,7 @@ def portfolio_backtest(
                 candidates.append((score, symbol, today, float(signal_bar["atr14"])))
         candidates.sort(key=lambda x: (-x[0], x[1]))
 
-        # Mark current portfolio at today's close before sizing new entries.
-        market_value = sum(p.shares * last_prices[s] for s, p in positions.items() if s in last_prices)
-        equity_before_entries = cash + market_value
-
+        # Mark the portfolio using last known closes, including exchanges shut today.
         for _, symbol, bar, atr in candidates:
             if len(positions) >= max_positions:
                 break
@@ -193,9 +193,13 @@ def portfolio_backtest(
             if entry <= 0 or stop <= 0:
                 continue
             risk_per_share = entry - stop
-            risk_budget = equity_before_entries * risk_fraction
+            market_value = sum(p.shares * last_prices[s] for s, p in positions.items() if s in last_prices)
+            equity_before_entry = cash + market_value
+            open_stop_risk = sum(p.shares * p.risk_per_share for p in positions.values())
+            portfolio_risk_capacity = max(0.0, equity_before_entry * max_portfolio_risk_fraction - open_stop_risk)
+            risk_budget = min(equity_before_entry * risk_fraction, portfolio_risk_capacity)
             by_risk = floor(risk_budget / risk_per_share)
-            by_concentration = floor(equity_before_entries * max_position_fraction / entry)
+            by_concentration = floor(equity_before_entry * max_position_fraction / entry)
             by_cash = floor(cash / (entry * (1 + half_cost)))
             shares = min(by_risk, by_concentration, by_cash)
             if shares < 1:
@@ -246,11 +250,15 @@ def portfolio_backtest(
             else:
                 positions[symbol] = pos
 
-        market_value = sum(
-            p.shares * float(frames[s].loc[day, "Close"])
-            for s, p in positions.items() if day in frames[s].index
-        )
-        equity_rows.append({"date": pd.Timestamp(day), "equity": cash + market_value, "cash": cash, "open_positions": len(positions)})
+        # Use carried-forward marks for positions whose exchange is closed today.
+        market_value = sum(p.shares * last_prices[s] for s, p in positions.items() if s in last_prices)
+        marked_equity = cash + market_value
+        open_stop_risk = sum(p.shares * p.risk_per_share for p in positions.values())
+        equity_rows.append({
+            "date": pd.Timestamp(day), "equity": marked_equity, "cash": cash,
+            "open_positions": len(positions),
+            "open_stop_risk_pct": (open_stop_risk / marked_equity * 100) if marked_equity > 0 else 0.0,
+        })
 
     # Liquidate remaining positions at their last available close, with costs.
     for symbol, pos in list(positions.items()):
@@ -279,6 +287,8 @@ def portfolio_backtest(
     curve = pd.DataFrame(equity_rows).drop_duplicates("date").set_index("date")["equity"]
     if len(curve):
         final_equity = cash
+        # Include end-of-data liquidation costs before calculating drawdown/returns.
+        curve.iloc[-1] = final_equity
         total_return = final_equity / initial_capital - 1
         daily_returns = curve.pct_change().replace([np.inf, -np.inf], np.nan).dropna()
         running_max = curve.cummax()
@@ -290,10 +300,6 @@ def portfolio_backtest(
         max_dd = float(drawdown.min())
     else:
         final_equity, total_return, cagr, volatility, sharpe, max_dd = initial_capital, 0.0, 0.0, 0.0, None, 0.0
-
-    if len(curve):
-        # The last observation is net of the costs incurred by end-of-data liquidation.
-        curve.iloc[-1] = final_equity
 
     trade_frame = pd.DataFrame(trades)
     wins = trade_frame[trade_frame["pnl"] > 0]["pnl"] if trades else pd.Series(dtype=float)
@@ -312,6 +318,9 @@ def portfolio_backtest(
         "average_trade_pnl": round(float(trade_frame["pnl"].mean()), 4) if trades else 0.0,
         "max_positions": max((int(x) for x in pd.DataFrame(equity_rows)["open_positions"]), default=0) if equity_rows else 0,
         "round_trip_cost_bps": round_trip_cost_bps,
+        "per_trade_risk_fraction_pct": round(risk_fraction * 100, 3),
+        "max_portfolio_open_risk_fraction_pct": round(max_portfolio_risk_fraction * 100, 3),
+        "max_observed_open_stop_risk_pct": round(float(pd.DataFrame(equity_rows)["open_stop_risk_pct"].max()), 3) if equity_rows else 0.0,
         "data_quality_by_symbol": data_quality,
         "trades_detail": trades,
         "equity_curve": [
@@ -338,6 +347,7 @@ def main() -> None:
     parser.add_argument("--holding", type=int, default=5)
     parser.add_argument("--max-positions", type=int, default=4)
     parser.add_argument("--risk-fraction", type=float, default=0.01)
+    parser.add_argument("--max-portfolio-risk-fraction", type=float, default=0.02)
     parser.add_argument("--max-position-fraction", type=float, default=0.25)
     parser.add_argument("--cost-bps", type=float, default=20.0)
     parser.add_argument("--output", type=Path)
@@ -376,6 +386,7 @@ def main() -> None:
         holding_sessions=args.holding,
         max_positions=args.max_positions,
         risk_fraction=args.risk_fraction,
+        max_portfolio_risk_fraction=args.max_portfolio_risk_fraction,
         max_position_fraction=args.max_position_fraction,
         round_trip_cost_bps=args.cost_bps,
     )
@@ -393,7 +404,7 @@ def main() -> None:
     rendered = json.dumps(report, indent=2)
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(rendered + "\\n", encoding="utf-8")
+        args.output.write_text(rendered + "\n", encoding="utf-8")
     print(rendered)
 
 
