@@ -77,7 +77,8 @@
         "AIR.PA": 206.64999389648438,
         "SAN.PA": 87.5999984741211,
         "OR.PA": 451.20001220703125
-      }
+      },
+      "sessions_elapsed": 1
     },
     "pullback_reclaim": {
       "holding_sessions": 3,
@@ -99,7 +100,8 @@
         "AIR.PA": 206.64999389648438,
         "SAN.PA": 87.5999984741211,
         "OR.PA": 451.20001220703125
-      }
+      },
+      "sessions_elapsed": 1
     },
     "regime_adaptive": {
       "holding_sessions": 5,
@@ -140,8 +142,9 @@
         "AIR.PA": 206.64999389648438,
         "SAN.PA": 87.5999984741211,
         "OR.PA": 451.20001220703125
-      }
+      },
+      "sessions_elapsed": 1
     }
   },
-  "updated_at_utc": "2026-11-14T21:39:26.696122+00:00"
+  "updated_at_utc": "2026-11-14T21:40:28.859703+00:00"
 }
