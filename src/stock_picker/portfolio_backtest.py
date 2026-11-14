@@ -32,7 +32,7 @@ class Position:
     sessions_held: int = 0
 
 
-def _prepare_history(history: pd.DataFrame, symbol: str = "UNKNOWN") -> pd.DataFrame:
+def _prepare_history(history: pd.DataFrame, symbol: str = "UNKNOWN", strategy: str = "momentum") -> pd.DataFrame:
     required = {"Open", "High", "Low", "Close"}
     if history is None or not required.issubset(history.columns):
         raise ValueError(f"{symbol}: history must contain {sorted(required)}")
@@ -70,7 +70,20 @@ def _prepare_history(history: pd.DataFrame, symbol: str = "UNKNOWN") -> pd.DataF
     frame["atr14"] = true_range.rolling(14, min_periods=14).mean()
     frame["sma20"] = frame["Close"].rolling(20, min_periods=20).mean()
     frame["momentum20"] = frame["Close"].pct_change(20)
-    frame["signal"] = (frame["Close"] > frame["sma20"]) & (frame["momentum20"] > 0)
+    frame["sma50"] = frame["Close"].rolling(50, min_periods=50).mean()
+    prior_high20 = frame["High"].rolling(20, min_periods=20).max().shift(1)
+    if strategy == "momentum":
+        frame["signal"] = (frame["Close"] > frame["sma20"]) & (frame["momentum20"] > 0)
+        frame["signal_score"] = frame["momentum20"]
+    elif strategy == "breakout":
+        frame["signal"] = (frame["Close"] > prior_high20) & (frame["Close"] > frame["sma20"])
+        frame["signal_score"] = frame["Close"] / prior_high20 - 1.0
+    elif strategy == "pullback_reclaim":
+        crossed_above_sma20 = (frame["Close"].shift(1) <= frame["sma20"].shift(1)) & (frame["Close"] > frame["sma20"])
+        frame["signal"] = crossed_above_sma20 & (frame["Close"] > frame["sma50"])
+        frame["signal_score"] = frame["momentum20"]
+    else:
+        raise ValueError("strategy must be momentum, breakout or pullback_reclaim")
     return frame
 
 
@@ -82,6 +95,7 @@ def portfolio_backtest(
     risk_fraction: float = 0.01,
     max_position_fraction: float = 0.25,
     max_portfolio_risk_fraction: float = 0.02,
+    strategy: str = "momentum",
     stop_atr: float = 1.5,
     target_r: float = 2.0,
     round_trip_cost_bps: float = 20.0,
@@ -93,6 +107,8 @@ def portfolio_backtest(
     """
     if not histories:
         raise ValueError("At least one symbol history is required")
+    if strategy not in {"momentum", "breakout", "pullback_reclaim"}:
+        raise ValueError("strategy must be momentum, breakout or pullback_reclaim")
     if initial_capital <= 0:
         raise ValueError("initial_capital must be positive")
     if not 1 <= holding_sessions <= 15 or max_positions < 1:
@@ -106,7 +122,7 @@ def portfolio_backtest(
     if stop_atr <= 0 or target_r <= 0 or not 0 <= round_trip_cost_bps <= 1000:
         raise ValueError("Invalid stop, target or transaction cost")
 
-    frames = {str(s): _prepare_history(h, str(s)) for s, h in histories.items()}
+    frames = {str(s): _prepare_history(h, str(s), strategy) for s, h in histories.items()}
     data_quality = {s: {"bars_used": len(f), "malformed_ohlc_rows_excluded": int(f.attrs.get("dropped_ohlc_rows", 0))} for s, f in frames.items()}
     # Daily bars from different exchanges need not share every holiday.
     calendar = sorted(set().union(*(set(f.index) for f in frames.values())))
@@ -180,8 +196,9 @@ def portfolio_backtest(
             signal_bar = frame.iloc[loc - 1]
             today = frame.iloc[loc]
             if bool(signal_bar["signal"]) and pd.notna(signal_bar["atr14"]):
-                score = float(signal_bar["momentum20"])
-                candidates.append((score, symbol, today, float(signal_bar["atr14"])))
+                score = float(signal_bar["signal_score"])
+                if np.isfinite(score):
+                    candidates.append((score, symbol, today, float(signal_bar["atr14"])))
         candidates.sort(key=lambda x: (-x[0], x[1]))
 
         # Mark the portfolio using last known closes, including exchanges shut today.
@@ -305,6 +322,7 @@ def portfolio_backtest(
     wins = trade_frame[trade_frame["pnl"] > 0]["pnl"] if trades else pd.Series(dtype=float)
     losses = trade_frame[trade_frame["pnl"] <= 0]["pnl"] if trades else pd.Series(dtype=float)
     result = {
+        "strategy": strategy,
         "initial_capital": round(initial_capital, 2),
         "final_equity": round(final_equity, 2),
         "total_return_pct": round(total_return * 100, 3),
@@ -348,6 +366,7 @@ def main() -> None:
     parser.add_argument("--max-positions", type=int, default=4)
     parser.add_argument("--risk-fraction", type=float, default=0.01)
     parser.add_argument("--max-portfolio-risk-fraction", type=float, default=0.02)
+    parser.add_argument("--strategy", choices=["momentum", "breakout", "pullback_reclaim"], default="momentum")
     parser.add_argument("--max-position-fraction", type=float, default=0.25)
     parser.add_argument("--cost-bps", type=float, default=20.0)
     parser.add_argument("--output", type=Path)
@@ -387,11 +406,17 @@ def main() -> None:
         max_positions=args.max_positions,
         risk_fraction=args.risk_fraction,
         max_portfolio_risk_fraction=args.max_portfolio_risk_fraction,
+        strategy=args.strategy,
         max_position_fraction=args.max_position_fraction,
         round_trip_cost_bps=args.cost_bps,
     )
     report = {
-        "strategy": "20-session momentum above 20-session SMA; next-session open entry",
+        "strategy": args.strategy,
+        "signal_definition": {
+            "momentum": "Close above SMA20 and positive 20-session momentum",
+            "breakout": "Close above prior 20-session high and above SMA20",
+            "pullback_reclaim": "Close crosses back above SMA20 while above SMA50",
+        }[args.strategy],
         "data_provider": "Yahoo Finance via yfinance",
         "period_requested": args.period,
         "account_currency": args.currency,
