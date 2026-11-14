@@ -263,6 +263,8 @@ def run(state_path: Path, universe_path: Path, output_path: Path) -> dict:
             summary["strategies"][strategy] = {"status": "NO_DATA"}
             continue
         last_date = portfolio.get("last_processed_date")
+        if "sessions_elapsed" not in portfolio:
+            portfolio["sessions_elapsed"] = 1 if last_date else 0
         if int(portfolio.get("sessions_elapsed", 0)) >= 30:
             days = []
         elif last_date:
