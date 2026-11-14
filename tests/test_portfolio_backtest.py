@@ -47,3 +47,12 @@ def test_portfolio_backtest_rejects_invalid_input():
         portfolio_backtest({"BAD": pd.DataFrame({"Close": [1, 2, 3]})})
     with pytest.raises(ValueError):
         portfolio_backtest({"AAA": make_history()}, holding_sessions=20)
+
+
+
+def test_portfolio_backtest_excludes_and_reports_malformed_ohlc_rows():
+    frame = make_history()
+    frame.iloc[30, frame.columns.get_loc("Low")] = frame.iloc[30]["High"] + 1
+    result = portfolio_backtest({"AAA": frame})
+    assert result["data_quality_by_symbol"]["AAA"]["malformed_ohlc_rows_excluded"] == 1
+    assert result["data_quality_by_symbol"]["AAA"]["bars_used"] == len(frame) - 1
