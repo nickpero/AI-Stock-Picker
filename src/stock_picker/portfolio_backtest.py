@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+from dataclasses import dataclass
 from math import floor
 from typing import Mapping
 
