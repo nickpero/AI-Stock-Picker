@@ -104,6 +104,9 @@ def _prepare_history(history: pd.DataFrame, symbol: str = "UNKNOWN", strategy: s
     frame["sma20"] = frame["Close"].rolling(20, min_periods=20).mean()
     frame["momentum20"] = frame["Close"].pct_change(20)
     frame["sma50"] = frame["Close"].rolling(50, min_periods=50).mean()
+    frame["sma200"] = frame["Close"].rolling(200, min_periods=200).mean()
+    frame["atr_pct"] = frame["atr14"] / frame["Close"]
+    frame["atr_pct_ceiling"] = frame["atr_pct"].rolling(100, min_periods=40).quantile(0.80)
     prior_high20 = frame["High"].rolling(20, min_periods=20).max().shift(1)
     if strategy == "momentum":
         frame["signal"] = (frame["Close"] > frame["sma20"]) & (frame["momentum20"] > 0)
@@ -115,8 +118,15 @@ def _prepare_history(history: pd.DataFrame, symbol: str = "UNKNOWN", strategy: s
         crossed_above_sma20 = (frame["Close"].shift(1) <= frame["sma20"].shift(1)) & (frame["Close"] > frame["sma20"])
         frame["signal"] = crossed_above_sma20 & (frame["Close"] > frame["sma50"])
         frame["signal_score"] = frame["momentum20"]
+    elif strategy == "regime_adaptive":
+        crossed_above_sma20 = (frame["Close"].shift(1) <= frame["sma20"].shift(1)) & (frame["Close"] > frame["sma20"])
+        uptrend = (frame["Close"] > frame["sma50"]) & (frame["sma50"] > frame["sma200"])
+        volatility_ok = frame["atr_pct"] <= frame["atr_pct_ceiling"]
+        continuation = (frame["Close"] > frame["sma20"]) & (frame["momentum20"] > 0)
+        frame["signal"] = uptrend & volatility_ok & (continuation | crossed_above_sma20)
+        frame["signal_score"] = frame["momentum20"] / frame["atr_pct"].replace(0, np.nan)
     else:
-        raise ValueError("strategy must be momentum, breakout or pullback_reclaim")
+        raise ValueError("strategy must be momentum, breakout, pullback_reclaim or regime_adaptive")
     return frame
 
 
@@ -140,7 +150,7 @@ def portfolio_backtest(
     """
     if not histories:
         raise ValueError("At least one symbol history is required")
-    if strategy not in {"momentum", "breakout", "pullback_reclaim"}:
+    if strategy not in {"momentum", "breakout", "pullback_reclaim", "regime_adaptive"}:
         raise ValueError("strategy must be momentum, breakout or pullback_reclaim")
     if initial_capital <= 0:
         raise ValueError("initial_capital must be positive")
@@ -368,7 +378,7 @@ def main() -> None:
     parser.add_argument("--max-positions", type=int, default=4)
     parser.add_argument("--risk-fraction", type=float, default=0.01)
     parser.add_argument("--max-portfolio-risk-fraction", type=float, default=0.02)
-    parser.add_argument("--strategy", choices=["momentum", "breakout", "pullback_reclaim"], default="momentum")
+    parser.add_argument("--strategy", choices=["momentum", "breakout", "pullback_reclaim", "regime_adaptive"], default="momentum")
     parser.add_argument("--max-position-fraction", type=float, default=0.25)
     parser.add_argument("--cost-bps", type=float, default=20.0)
     parser.add_argument("--output", type=Path)
@@ -418,6 +428,7 @@ def main() -> None:
             "momentum": "Close above SMA20 and positive 20-session momentum",
             "breakout": "Close above prior 20-session high and above SMA20",
             "pullback_reclaim": "Close crosses back above SMA20 while above SMA50",
+            "regime_adaptive": "Trend continuation or SMA20 reclaim above SMA50>SMA200, filtered by trailing ATR percentile",
         }[args.strategy],
         "data_provider": "Yahoo Finance via yfinance",
         "period_requested": args.period,
