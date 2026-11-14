@@ -52,6 +52,7 @@ def score_history(history: pd.DataFrame) -> dict:
         "return_5d_pct": round(ret5, 2),
         "return_20d_pct": round(ret20, 2),
         "volume_ratio": round(volume_ratio, 2),
+        "atr_14": round(float(true_range.rolling(14).mean().iloc[-1]), 4),
         "atr_14_pct": round(atr_pct, 2),
         "score": total,
         "signal": "WATCH" if total >= 65 else "NEUTRAL" if total >= 45 else "AVOID",
