@@ -44,6 +44,7 @@ on:
           - momentum
           - breakout
           - pullback_reclaim
+          - regime_adaptive
       cost_bps:
         description: "Estimated round-trip transaction cost in basis points"
         required: true
