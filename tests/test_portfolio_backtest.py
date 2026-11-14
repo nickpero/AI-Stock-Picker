@@ -92,3 +92,14 @@ def test_portfolio_backtest_supports_comparison_strategies(strategy):
 def test_portfolio_backtest_rejects_unknown_strategy():
     with pytest.raises(ValueError):
         portfolio_backtest({"AAA": make_history()}, strategy="guess")
+
+
+def test_portfolio_backtest_reports_same_universe_benchmark():
+    result = portfolio_backtest(
+        {"AAA": make_history(), "BBB": make_history(start=30)},
+        initial_capital=1000,
+    )
+    benchmark = result["benchmark_equal_weight"]
+    assert benchmark["final_equity"] > 0
+    assert "cagr_pct" in benchmark
+    assert "same available symbols and dates" in benchmark["method"]
