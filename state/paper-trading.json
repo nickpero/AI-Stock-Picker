@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "created_at_utc": "2026-11-14T21:38:38.512Z",
+  "strategies": {
+    "momentum": {
+      "holding_sessions": 3,
+      "cash": 1000,
+      "positions": {},
+      "pending": [],
+      "trades": [],
+      "last_processed_date": null,
+      "equity": 1000,
+      "last_prices": {}
+    },
+    "pullback_reclaim": {
+      "holding_sessions": 3,
+      "cash": 1000,
+      "positions": {},
+      "pending": [],
+      "trades": [],
+      "last_processed_date": null,
+      "equity": 1000,
+      "last_prices": {}
+    },
+    "regime_adaptive": {
+      "holding_sessions": 5,
+      "cash": 1000,
+      "positions": {},
+      "pending": [],
+      "trades": [],
+      "last_processed_date": null,
+      "equity": 1000,
+      "last_prices": {}
+    }
+  }
+}
