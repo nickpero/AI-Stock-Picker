@@ -1,0 +1,25 @@
+{
+  "description": "Starter watchlist only; expand to a liquid, point-in-time US and European universe before production use.",
+  "symbols": [
+    "AAPL",
+    "MSFT",
+    "NVDA",
+    "AMZN",
+    "META",
+    "TSLA",
+    "LLY",
+    "NVO",
+    "ASML.AS",
+    "SAP.DE",
+    "MC.PA",
+    "RACE.MI",
+    "ENEL.MI",
+    "ISP.MI",
+    "UCG.MI",
+    "STLAM.MI",
+    "AIR.PA",
+    "SAN.PA",
+    "OR.PA",
+    "NESN.SW"
+  ]
+}
