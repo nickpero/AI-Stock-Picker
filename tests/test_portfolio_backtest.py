@@ -56,3 +56,24 @@ def test_portfolio_backtest_excludes_and_reports_malformed_ohlc_rows():
     result = portfolio_backtest({"AAA": frame})
     assert result["data_quality_by_symbol"]["AAA"]["malformed_ohlc_rows_excluded"] == 1
     assert result["data_quality_by_symbol"]["AAA"]["bars_used"] == len(frame) - 1
+
+
+def test_portfolio_backtest_caps_aggregate_open_stop_risk():
+    histories = {
+        "AAA": make_history(start=20.0),
+        "BBB": make_history(start=25.0),
+        "CCC": make_history(start=30.0),
+        "DDD": make_history(start=35.0),
+    }
+    result = portfolio_backtest(
+        histories, initial_capital=10000, holding_sessions=5,
+        max_positions=4, risk_fraction=0.01,
+        max_portfolio_risk_fraction=0.02,
+    )
+    assert result["max_observed_open_stop_risk_pct"] <= 2.0
+    assert result["max_portfolio_open_risk_fraction_pct"] == 2.0
+
+
+def test_portfolio_backtest_rejects_excessive_aggregate_risk_limit():
+    with pytest.raises(ValueError):
+        portfolio_backtest({"AAA": make_history()}, max_portfolio_risk_fraction=0.20)
