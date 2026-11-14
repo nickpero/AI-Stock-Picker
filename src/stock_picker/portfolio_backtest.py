@@ -95,8 +95,14 @@ def portfolio_backtest(
     positions: dict[str, Position] = {}
     trades: list[dict] = []
     equity_rows: list[dict] = []
+    last_prices: dict[str, float] = {}
 
     for day in calendar:
+        # Carry forward the last close for markets that are shut on this date.
+        for symbol, frame in frames.items():
+            if day in frame.index:
+                last_prices[symbol] = float(frame.loc[day, "Close"])
+
         # Manage existing positions first; no same-day re-entry after an exit.
         exited_today: set[str] = set()
         for symbol, pos in list(positions.items()):
@@ -159,10 +165,7 @@ def portfolio_backtest(
         candidates.sort(key=lambda x: (-x[0], x[1]))
 
         # Mark current portfolio at today's close before sizing new entries.
-        market_value = sum(
-            p.shares * float(frames[s].loc[day, "Close"])
-            for s, p in positions.items() if day in frames[s].index
-        )
+        market_value = sum(p.shares * last_prices[s] for s, p in positions.items() if s in last_prices)
         equity_before_entries = cash + market_value
 
         for _, symbol, bar, atr in candidates:
