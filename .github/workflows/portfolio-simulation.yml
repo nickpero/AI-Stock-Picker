@@ -1,0 +1,71 @@
+name: Portfolio Simulation
+
+on:
+  workflow_dispatch:
+    inputs:
+      currency:
+        description: "Run one market currency at a time (FX conversion is not included)"
+        required: true
+        type: choice
+        options:
+          - EUR
+          - USD
+          - CHF
+      period:
+        description: "Historical window"
+        required: true
+        type: choice
+        default: "5y"
+        options:
+          - "2y"
+          - "5y"
+          - "10y"
+      capital:
+        description: "Starting capital in the selected currency"
+        required: true
+        default: "1000"
+        type: string
+      holding:
+        description: "Maximum holding sessions (1-15)"
+        required: true
+        default: "5"
+        type: string
+      max_positions:
+        description: "Maximum concurrent positions"
+        required: true
+        default: "4"
+        type: string
+      cost_bps:
+        description: "Estimated round-trip transaction cost in basis points"
+        required: true
+        default: "20"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  simulate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Run portfolio simulation
+        run: |
+          PYTHONPATH=src python -m stock_picker.portfolio_backtest \
+            --universe config/universe.json \
+            --period "${{ inputs.period }}" \
+            --currency "${{ inputs.currency }}" \
+            --capital "${{ inputs.capital }}" \
+            --holding "${{ inputs.holding }}" \
+            --max-positions "${{ inputs.max_positions }}" \
+            --cost-bps "${{ inputs.cost_bps }}" \
+            --output reports/portfolio-backtest.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: portfolio-simulation-${{ inputs.currency }}-${{ github.run_number }}
+          path: reports/portfolio-backtest.json
+          if-no-files-found: error
