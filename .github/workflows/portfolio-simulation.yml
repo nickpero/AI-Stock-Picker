@@ -54,15 +54,22 @@ jobs:
           python-version: "3.12"
       - run: pip install -r requirements.txt
       - name: Run portfolio simulation
+        env:
+          SIM_PERIOD: ${{ inputs.period }}
+          SIM_CURRENCY: ${{ inputs.currency }}
+          SIM_CAPITAL: ${{ inputs.capital }}
+          SIM_HOLDING: ${{ inputs.holding }}
+          SIM_MAX_POSITIONS: ${{ inputs.max_positions }}
+          SIM_COST_BPS: ${{ inputs.cost_bps }}
         run: |
           PYTHONPATH=src python -m stock_picker.portfolio_backtest \
             --universe config/universe.json \
-            --period "${{ inputs.period }}" \
-            --currency "${{ inputs.currency }}" \
-            --capital "${{ inputs.capital }}" \
-            --holding "${{ inputs.holding }}" \
-            --max-positions "${{ inputs.max_positions }}" \
-            --cost-bps "${{ inputs.cost_bps }}" \
+            --period "$SIM_PERIOD" \
+            --currency "$SIM_CURRENCY" \
+            --capital "$SIM_CAPITAL" \
+            --holding "$SIM_HOLDING" \
+            --max-positions "$SIM_MAX_POSITIONS" \
+            --cost-bps "$SIM_COST_BPS" \
             --output reports/portfolio-backtest.json
       - uses: actions/upload-artifact@v4
         with:
