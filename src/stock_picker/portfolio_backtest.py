@@ -318,6 +318,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Run a cash- and risk-constrained portfolio simulation")
     parser.add_argument("--universe", type=Path, default=Path("config/universe.json"))
     parser.add_argument("--period", default="5y")
+    parser.add_argument("--currency", choices=["EUR", "USD", "CHF"], required=True,
+                        help="Run one currency at a time; FX conversion is not yet implemented")
     parser.add_argument("--capital", type=float, default=1000.0)
     parser.add_argument("--holding", type=int, default=5)
     parser.add_argument("--max-positions", type=int, default=4)
@@ -329,12 +331,19 @@ def main() -> None:
 
     universe = json.loads(args.universe.read_text(encoding="utf-8"))
     symbols = universe.get("symbols", [])
+    currencies = universe.get("currencies", {})
     if not symbols or not all(isinstance(s, str) for s in symbols):
         parser.error("Universe file must contain a non-empty symbols list")
+    untagged = [s for s in symbols if s not in currencies]
+    if untagged:
+        parser.error(f"Missing currency tags for: {', '.join(untagged)}")
+    requested_symbols = [s for s in symbols if currencies[s] == args.currency]
+    if not requested_symbols:
+        parser.error(f"No symbols configured in {args.currency}")
 
     histories = {}
     errors = {}
-    for symbol in symbols:
+    for symbol in requested_symbols:
         try:
             history = yf.Ticker(symbol).history(period=args.period, auto_adjust=True)
             if not history.empty:
@@ -360,7 +369,8 @@ def main() -> None:
         "strategy": "20-session momentum above 20-session SMA; next-session open entry",
         "data_provider": "Yahoo Finance via yfinance",
         "period_requested": args.period,
-        "symbols_requested": len(symbols),
+        "account_currency": args.currency,
+        "symbols_requested": len(requested_symbols),
         "symbols_downloaded": len(histories),
         "download_errors": errors,
         "result": result,
