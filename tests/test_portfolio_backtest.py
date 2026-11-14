@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from stock_picker.portfolio_backtest import portfolio_backtest
+from stock_picker.portfolio_backtest import _prepare_history, portfolio_backtest
 
 
 def make_history(n=100, start=20.0):
@@ -118,3 +118,20 @@ def test_backtest_declares_non_lookahead_execution_order():
     result = portfolio_backtest({"AAA": make_history()})
     assert "prior_close_signal_next_open_fill" in result["execution_model"]
     assert "intraday_exits_after_entries" in result["execution_model"]
+
+
+def test_start_date_keeps_prior_bars_for_indicator_warmup_but_limits_evaluation():
+    frame = make_history(n=120)
+    cutoff = frame.index[80].date().isoformat()
+    result = portfolio_backtest({"AAA": frame}, start_date=cutoff)
+    assert result["evaluation_start_date"] == cutoff
+    assert result["equity_curve"][0]["date"] == cutoff
+
+
+def test_regime_adaptive_atr_ceiling_uses_only_prior_bars():
+    frame = make_history(n=360)
+    frame["High"] = frame["Close"] * 1.03
+    frame["Low"] = frame["Close"] * 0.97
+    prepared = _prepare_history(frame, "AAA", "regime_adaptive")
+    expected = prepared["atr_pct"].iloc[-101:-1].quantile(0.80)
+    assert prepared["atr_pct_ceiling"].iloc[-1] == pytest.approx(expected)
