@@ -183,7 +183,7 @@ def portfolio_backtest(
             cost = shares * entry
             fee = cost * half_cost
             cash -= cost + fee
-            positions[symbol] = Position(
+            pos = Position(
                 symbol=symbol,
                 entry_date=pd.Timestamp(day),
                 entry_price=entry,
@@ -191,10 +191,40 @@ def portfolio_backtest(
                 stop=stop,
                 target=entry + target_r * risk_per_share,
                 risk_per_share=risk_per_share,
+                sessions_held=1,
             )
-            # Entry-bar stop/target handling is intentionally performed on the
-            # next iteration only; daily OHLC cannot establish event ordering
-            # relative to an opening fill without intraday data.
+            # Entry-day OHLC is checked after the opening fill. If both levels
+            # are touched, assume stop first because daily bars lack sequencing.
+            high, low = float(bar["High"]), float(bar["Low"])
+            entry_exit = None
+            entry_reason = None
+            if low <= pos.stop and high >= pos.target:
+                entry_exit, entry_reason = pos.stop, "stop_and_target_same_bar_stop_first"
+            elif low <= pos.stop:
+                entry_exit, entry_reason = pos.stop, "stop_entry_day"
+            elif high >= pos.target:
+                entry_exit, entry_reason = pos.target, "target_entry_day"
+            if entry_exit is not None:
+                proceeds = shares * entry_exit
+                exit_fee = proceeds * half_cost
+                cash += proceeds - exit_fee
+                entry_cost = shares * entry
+                entry_fee = entry_cost * half_cost
+                pnl = proceeds - exit_fee - entry_cost - entry_fee
+                trades.append({
+                    "symbol": symbol,
+                    "entry_date": pd.Timestamp(day).date().isoformat(),
+                    "exit_date": pd.Timestamp(day).date().isoformat(),
+                    "entry_price": round(entry, 6),
+                    "exit_price": round(entry_exit, 6),
+                    "shares": shares,
+                    "pnl": round(pnl, 4),
+                    "return_pct": round(pnl / (entry_cost + entry_fee) * 100, 4),
+                    "exit_reason": entry_reason,
+                    "sessions_held": 1,
+                })
+            else:
+                positions[symbol] = pos
 
         market_value = sum(
             p.shares * float(frames[s].loc[day, "Close"])
@@ -240,6 +270,10 @@ def portfolio_backtest(
         max_dd = float(drawdown.min())
     else:
         final_equity, total_return, cagr, volatility, sharpe, max_dd = initial_capital, 0.0, 0.0, 0.0, None, 0.0
+
+    if len(curve):
+        # The last observation is net of the costs incurred by end-of-data liquidation.
+        curve.iloc[-1] = final_equity
 
     trade_frame = pd.DataFrame(trades)
     wins = trade_frame[trade_frame["pnl"] > 0]["pnl"] if trades else pd.Series(dtype=float)
