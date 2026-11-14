@@ -7,9 +7,13 @@ the same account currency; FX conversion is intentionally not guessed.
 """
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+import argparse
+import json
+from pathlib import Path
 from math import floor
 from typing import Mapping
+
+import yfinance as yf
 
 import numpy as np
 import pandas as pd
@@ -308,3 +312,66 @@ def portfolio_backtest(
         ],
     }
     return result
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Run a cash- and risk-constrained portfolio simulation")
+    parser.add_argument("--universe", type=Path, default=Path("config/universe.json"))
+    parser.add_argument("--period", default="5y")
+    parser.add_argument("--capital", type=float, default=1000.0)
+    parser.add_argument("--holding", type=int, default=5)
+    parser.add_argument("--max-positions", type=int, default=4)
+    parser.add_argument("--risk-fraction", type=float, default=0.01)
+    parser.add_argument("--max-position-fraction", type=float, default=0.25)
+    parser.add_argument("--cost-bps", type=float, default=20.0)
+    parser.add_argument("--output", type=Path)
+    args = parser.parse_args()
+
+    universe = json.loads(args.universe.read_text(encoding="utf-8"))
+    symbols = universe.get("symbols", [])
+    if not symbols or not all(isinstance(s, str) for s in symbols):
+        parser.error("Universe file must contain a non-empty symbols list")
+
+    histories = {}
+    errors = {}
+    for symbol in symbols:
+        try:
+            history = yf.Ticker(symbol).history(period=args.period, auto_adjust=True)
+            if not history.empty:
+                histories[symbol] = history
+            else:
+                errors[symbol] = "No historical data returned"
+        except Exception as exc:
+            errors[symbol] = str(exc)[:180]
+
+    if not histories:
+        parser.error("No usable histories were downloaded")
+
+    result = portfolio_backtest(
+        histories,
+        initial_capital=args.capital,
+        holding_sessions=args.holding,
+        max_positions=args.max_positions,
+        risk_fraction=args.risk_fraction,
+        max_position_fraction=args.max_position_fraction,
+        round_trip_cost_bps=args.cost_bps,
+    )
+    report = {
+        "strategy": "20-session momentum above 20-session SMA; next-session open entry",
+        "data_provider": "Yahoo Finance via yfinance",
+        "period_requested": args.period,
+        "symbols_requested": len(symbols),
+        "symbols_downloaded": len(histories),
+        "download_errors": errors,
+        "result": result,
+        "warning": "Indicative historical simulation, not a forecast or investment recommendation.",
+    }
+    rendered = json.dumps(report, indent=2)
+    if args.output:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(rendered + "\\n", encoding="utf-8")
+    print(rendered)
+
+
+if __name__ == "__main__":
+    main()
