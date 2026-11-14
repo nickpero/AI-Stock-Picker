@@ -32,6 +32,39 @@ class Position:
     sessions_held: int = 0
 
 
+def _benchmark_result(frames: Mapping[str, pd.DataFrame], calendar: list[pd.Timestamp], initial_capital: float) -> dict:
+    """Equal-weight daily-rebalanced price benchmark using the same available symbols/dates.
+
+    Prices are adjusted by yfinance in the CLI download path. The benchmark is
+    frictionless and is intended as a reference, not an executable portfolio.
+    """
+    dates = pd.DatetimeIndex(calendar)
+    returns = []
+    for frame in frames.values():
+        close = frame["Close"].reindex(dates).ffill()
+        returns.append(close.pct_change(fill_method=None).fillna(0.0).rename("return"))
+    daily = pd.concat(returns, axis=1).mean(axis=1).fillna(0.0)
+    equity = initial_capital * (1.0 + daily).cumprod()
+    if len(equity) == 0:
+        return {"method": "equal-weight daily-rebalanced, frictionless", "final_equity": round(initial_capital, 2)}
+    years = max((equity.index[-1] - equity.index[0]).days / 365.25, 1 / 365.25)
+    total_return = float(equity.iloc[-1] / initial_capital - 1.0)
+    cagr = (float(equity.iloc[-1]) / initial_capital) ** (1.0 / years) - 1.0 if equity.iloc[-1] > 0 else -1.0
+    daily_returns = equity.pct_change().replace([np.inf, -np.inf], np.nan).dropna()
+    volatility = float(daily_returns.std(ddof=1) * np.sqrt(252)) if len(daily_returns) > 1 else 0.0
+    sharpe = float(daily_returns.mean() / daily_returns.std(ddof=1) * np.sqrt(252)) if len(daily_returns) > 1 and daily_returns.std(ddof=1) > 0 else None
+    max_drawdown = float((equity / equity.cummax() - 1.0).min())
+    return {
+        "method": "equal-weight daily-rebalanced, frictionless; same available symbols and dates",
+        "final_equity": round(float(equity.iloc[-1]), 2),
+        "total_return_pct": round(total_return * 100, 3),
+        "cagr_pct": round(cagr * 100, 3),
+        "max_drawdown_pct": round(max_drawdown * 100, 3),
+        "annualized_volatility_pct": round(volatility * 100, 3),
+        "sharpe_ratio": round(sharpe, 3) if sharpe is not None else None,
+    }
+
+
 def _prepare_history(history: pd.DataFrame, symbol: str = "UNKNOWN", strategy: str = "momentum") -> pd.DataFrame:
     required = {"Open", "High", "Low", "Close"}
     if history is None or not required.issubset(history.columns):
@@ -339,6 +372,7 @@ def portfolio_backtest(
         "per_trade_risk_fraction_pct": round(risk_fraction * 100, 3),
         "max_portfolio_open_risk_fraction_pct": round(max_portfolio_risk_fraction * 100, 3),
         "max_observed_open_stop_risk_pct": round(float(pd.DataFrame(equity_rows)["open_stop_risk_pct"].max()), 3) if equity_rows else 0.0,
+        "benchmark_equal_weight": _benchmark_result(frames, calendar, initial_capital),
         "data_quality_by_symbol": data_quality,
         "trades_detail": trades,
         "equity_curve": [
