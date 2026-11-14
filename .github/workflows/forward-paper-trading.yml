@@ -4,6 +4,8 @@ on:
   push:
     paths:
       - ".github/workflows/forward-paper-trading.yml"
+      - "src/stock_picker/paper_trading.py"
+      - "config/universe.json"
   schedule:
     # After US regular-session close (winter UTC); only weekdays.
     - cron: "30 22 * * 1-5"
