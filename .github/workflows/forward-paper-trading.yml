@@ -1,6 +1,9 @@
 name: Forward Paper Trading
 
 on:
+  push:
+    paths:
+      - ".github/workflows/forward-paper-trading.yml"
   schedule:
     # After US regular-session close (winter UTC); only weekdays.
     - cron: "30 22 * * 1-5"
