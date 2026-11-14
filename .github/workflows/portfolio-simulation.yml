@@ -56,6 +56,7 @@ jobs:
           SIM_CURRENCY: ${{ inputs.currency || 'EUR' }}
           SIM_CAPITAL: ${{ inputs.capital || '1000' }}
           SIM_HOLDING: ${{ matrix.holding }}
+          SIM_START_DATE: "2024-11-14"
           SIM_MAX_POSITIONS: ${{ inputs.max_positions || '4' }}
           SIM_COST_BPS: ${{ inputs.cost_bps || '20' }}
           SIM_STRATEGY: ${{ matrix.strategy }}
@@ -67,6 +68,7 @@ jobs:
             --currency "$SIM_CURRENCY" \
             --capital "$SIM_CAPITAL" \
             --holding "$SIM_HOLDING" \
+            --start-date "$SIM_START_DATE" \
             --max-positions "$SIM_MAX_POSITIONS" \
             --strategy "$SIM_STRATEGY" \
             --cost-bps "$SIM_COST_BPS" \
