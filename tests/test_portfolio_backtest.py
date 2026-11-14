@@ -103,3 +103,18 @@ def test_portfolio_backtest_reports_same_universe_benchmark():
     assert benchmark["final_equity"] > 0
     assert "cagr_pct" in benchmark
     assert "same available symbols and dates" in benchmark["method"]
+
+
+def test_regime_adaptive_strategy_is_supported_and_reported():
+    result = portfolio_backtest(
+        {"AAA": make_history(n=320), "BBB": make_history(n=320, start=30)},
+        initial_capital=1000, strategy="regime_adaptive",
+    )
+    assert result["strategy"] == "regime_adaptive"
+    assert result["final_equity"] > 0
+
+
+def test_backtest_declares_non_lookahead_execution_order():
+    result = portfolio_backtest({"AAA": make_history()})
+    assert "prior_close_signal_next_open_fill" in result["execution_model"]
+    assert "intraday_exits_after_entries" in result["execution_model"]
