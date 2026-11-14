@@ -34,7 +34,7 @@ def backtest_history(
     momentum20 = close.pct_change(20)
     signal = (close > sma20) & (momentum20 > 0)
     entry = data["Open"].shift(-1)
-    exit_price = data["Close"].shift(-(holding_sessions + 1))
+    exit_price = data["Close"].shift(-holding_sessions)
     gross = exit_price / entry - 1.0
     valid = signal & entry.notna() & exit_price.notna() & (entry > 0)
     trades = gross[valid] - (cost_bps / 10_000.0)
