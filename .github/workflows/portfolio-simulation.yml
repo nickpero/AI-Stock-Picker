@@ -1,6 +1,9 @@
 name: Portfolio Simulation
 
 on:
+  push:
+    paths:
+      - ".github/workflows/portfolio-simulation.yml"
   workflow_dispatch:
     inputs:
       currency:
