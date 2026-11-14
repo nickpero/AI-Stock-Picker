@@ -35,6 +35,15 @@ on:
         required: true
         default: "4"
         type: string
+      strategy:
+        description: "Signal model to compare on the same universe and dates"
+        required: true
+        type: choice
+        default: momentum
+        options:
+          - momentum
+          - breakout
+          - pullback_reclaim
       cost_bps:
         description: "Estimated round-trip transaction cost in basis points"
         required: true
@@ -61,6 +70,7 @@ jobs:
           SIM_HOLDING: ${{ inputs.holding }}
           SIM_MAX_POSITIONS: ${{ inputs.max_positions }}
           SIM_COST_BPS: ${{ inputs.cost_bps }}
+          SIM_STRATEGY: ${{ inputs.strategy }}
         run: |
           PYTHONPATH=src python -m stock_picker.portfolio_backtest \
             --universe config/universe.json \
@@ -69,10 +79,11 @@ jobs:
             --capital "$SIM_CAPITAL" \
             --holding "$SIM_HOLDING" \
             --max-positions "$SIM_MAX_POSITIONS" \
+            --strategy "$SIM_STRATEGY" \
             --cost-bps "$SIM_COST_BPS" \
             --output reports/portfolio-backtest.json
       - uses: actions/upload-artifact@v4
         with:
-          name: portfolio-simulation-${{ inputs.currency }}-${{ github.run_number }}
+          name: portfolio-simulation-${{ inputs.currency }}-${{ inputs.strategy }}-${{ github.run_number }}
           path: reports/portfolio-backtest.json
           if-no-files-found: error
