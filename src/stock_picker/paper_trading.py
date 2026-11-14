@@ -47,6 +47,7 @@ def empty_state() -> dict:
                 "pending": [],
                 "trades": [],
                 "last_processed_date": None,
+                "sessions_elapsed": 0,
                 "equity": STARTING_CAPITAL,
                 "last_prices": {},
             }
@@ -179,6 +180,13 @@ def _process_day(portfolio: dict, strategy: str, holding: int,
 
     # 4) Close marks and generate next-session orders from today's completed bar.
     _mark_equity(portfolio, bars)
+    portfolio["sessions_elapsed"] = int(portfolio.get("sessions_elapsed", 0)) + 1
+    if portfolio["sessions_elapsed"] >= 30:
+        for symbol, pos in list(portfolio["positions"].items()):
+            close_price = bars.get(symbol, {}).get("Close", portfolio["last_prices"].get(symbol, pos["entry_price"]))
+            _exit(portfolio, symbol, day, close_price, "30_session_test_end")
+            events.append({"type": "EXIT", "symbol": symbol, "reason": "30_session_test_end", "price": close_price})
+        portfolio["pending"] = []
     existing = set(portfolio["positions"]) | {o["symbol"] for o in portfolio["pending"]}
     candidates = []
     for symbol, row in signal_rows.items():
@@ -190,7 +198,7 @@ def _process_day(portfolio: dict, strategy: str, holding: int,
             if pd.notna(score) and score == score and atr > 0:
                 candidates.append((score, symbol, atr))
     candidates.sort(key=lambda item: (-item[0], item[1]))
-    for score, symbol, atr in candidates:
+    for score, symbol, atr in candidates[:MAX_POSITIONS] if portfolio["sessions_elapsed"] < 30 else []:
         portfolio["pending"].append({
             "symbol": symbol, "atr": atr, "score": score,
             "signal_date": day.date().isoformat(),
@@ -255,7 +263,9 @@ def run(state_path: Path, universe_path: Path, output_path: Path) -> dict:
             summary["strategies"][strategy] = {"status": "NO_DATA"}
             continue
         last_date = portfolio.get("last_processed_date")
-        if last_date:
+        if int(portfolio.get("sessions_elapsed", 0)) >= 30:
+            days = []
+        elif last_date:
             days = [d for d in all_days if d.date().isoformat() > last_date]
         else:
             # First activation: start from the latest completed session only.
@@ -271,7 +281,9 @@ def run(state_path: Path, universe_path: Path, output_path: Path) -> dict:
         for symbol, pos in portfolio["positions"].items():
             open_positions.append({"symbol": symbol, **pos})
         summary["strategies"][strategy] = {
-            "status": "ACTIVE",
+            "status": "COMPLETED" if int(portfolio.get("sessions_elapsed", 0)) >= 30 else "ACTIVE",
+            "sessions_elapsed": int(portfolio.get("sessions_elapsed", 0)),
+            "target_sessions": 30,
             "last_processed_date": portfolio["last_processed_date"],
             "equity_eur": round(portfolio["equity"], 2),
             "cash_eur": round(portfolio["cash"], 2),
