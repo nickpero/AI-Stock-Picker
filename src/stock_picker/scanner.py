@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 import yfinance as yf
@@ -70,7 +71,7 @@ def main() -> None:
 
     ranked = scan(load_universe(args.universe), args.period, args.capital, args.risk_fraction)
     report = {
-        "generated_at_utc": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
+        "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "data_provider": "Yahoo Finance via yfinance",
         "disclaimer": "Indicative research output; quotes may be delayed or incomplete. Verify all data before acting.",
         "results": ranked[: max(1, args.top)],
