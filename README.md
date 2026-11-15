@@ -7,6 +7,10 @@ Independent research and decision-support engine for short-term equity setups (2
 - A setup score is a ranking aid, not a probability of profit.
 - No predictive edge is claimed before point-in-time backtesting and paper-trading validation.
 
+## Investment discipline policy
+
+The project-specific translation of the principles in *I 7 errori - Stock Mastery* is documented in [`docs/investment-discipline-policy.md`](docs/investment-discipline-policy.md). It preserves the 2–15-session trading scope and keeps long-term fundamental investing rules separate from tactical entry signals.
+
 ## Current MVP
 - Configurable starter watchlist for US and European equities (`config/universe.json`).
 - Yahoo Finance historical OHLCV adapter (`yfinance`).
