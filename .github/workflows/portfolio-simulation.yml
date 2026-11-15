@@ -25,7 +25,7 @@ on:
       max_positions:
         description: "Maximum concurrent positions"
         required: true
-        default: "4"
+        default: "3"
         type: string
       cost_bps:
         description: "Round-trip transaction cost in basis points"
