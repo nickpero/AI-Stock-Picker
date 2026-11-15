@@ -134,7 +134,7 @@ def portfolio_backtest(
     histories: Mapping[str, pd.DataFrame],
     initial_capital: float = 1000.0,
     holding_sessions: int = 5,
-    max_positions: int = 4,
+    max_positions: int = 3,
     risk_fraction: float = 0.01,
     max_position_fraction: float = 0.25,
     max_portfolio_risk_fraction: float = 0.02,
@@ -383,7 +383,7 @@ def main() -> None:
     parser.add_argument("--capital", type=float, default=1000.0)
     parser.add_argument("--holding", type=int, default=5)
     parser.add_argument("--start-date", help="Evaluate portfolio only from this date; earlier bars warm up indicators")
-    parser.add_argument("--max-positions", type=int, default=4)
+    parser.add_argument("--max-positions", type=int, default=3)
     parser.add_argument("--risk-fraction", type=float, default=0.01)
     parser.add_argument("--max-portfolio-risk-fraction", type=float, default=0.02)
     parser.add_argument("--strategy", choices=["momentum", "breakout", "pullback_reclaim", "regime_adaptive"], default="momentum")
