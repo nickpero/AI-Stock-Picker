@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -33,6 +33,21 @@ def load_symbols(path: Path) -> list[str]:
         symbol for symbol in data.get("symbols", [])
         if currencies.get(symbol) == "EUR"
     ]
+
+
+def expected_latest_session(now: datetime | None = None) -> date:
+    """Latest expected completed weekday session at the time this job runs.
+
+    The scheduled job is intended to run after 22:00 UTC. If GitHub delays
+    it into the next UTC day, use the previous weekday as the expected bar.
+    Weekends are skipped; exchange holidays are conservatively treated as
+    missing data so the ledger is never advanced on an unverified session.
+    """
+    now = now or datetime.now(timezone.utc)
+    candidate = now.date() if now.hour >= 22 else now.date() - timedelta(days=1)
+    while candidate.weekday() >= 5:
+        candidate -= timedelta(days=1)
+    return candidate
 
 
 def empty_state() -> dict:
@@ -241,8 +256,16 @@ def run(state_path: Path, universe_path: Path, output_path: Path) -> dict:
     if not all_days:
         raise RuntimeError("No valid EUR daily price history downloaded")
 
+    generated_at = datetime.now(timezone.utc)
+    expected_date = expected_latest_session(generated_at)
+    latest_data_date = max(d.date() for d in all_days)
+
     summary = {
-        "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "generated_at_utc": generated_at.isoformat(),
+        "status": "OK",
+        "expected_latest_session": expected_date.isoformat(),
+        "data_as_of": latest_data_date.isoformat(),
+        "data_freshness": "FRESH",
         "data_provider": "Yahoo Finance via yfinance; auto-adjusted daily OHLC",
         "market_currency": "EUR only; USD and CHF symbols excluded to avoid FX assumptions",
         "starting_capital_per_strategy_eur": STARTING_CAPITAL,
@@ -255,6 +278,18 @@ def run(state_path: Path, universe_path: Path, output_path: Path) -> dict:
         "events": {},
         "disclaimer": "Paper trading only. Signals after close, simulated fills at next available open. Not investment advice or live execution.",
     }
+
+    if latest_data_date < expected_date:
+        summary["status"] = "STALE_DATA"
+        summary["data_freshness"] = "STALE"
+        summary["stale_data_reason"] = (
+            f"Latest Yahoo Finance bar is {latest_data_date.isoformat()}, "
+            f"but the latest expected completed weekday session is "
+            f"{expected_date.isoformat()}. Ledger was not advanced."
+        )
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(summary, indent=2) + "\\n", encoding="utf-8")
+        return summary
 
     for strategy, holding in STRATEGIES.items():
         portfolio = state["strategies"].setdefault(strategy, empty_state()["strategies"][strategy])
@@ -314,6 +349,8 @@ def main() -> None:
     args = parser.parse_args()
     report = run(args.state, args.universe, args.output)
     print(json.dumps(report, indent=2))
+    if report.get("status") == "STALE_DATA":
+        raise SystemExit("STALE_DATA: refusing to advance the paper ledger")
 
 
 if __name__ == "__main__":
