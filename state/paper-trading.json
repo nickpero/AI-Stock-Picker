@@ -4,81 +4,96 @@
   "strategies": {
     "momentum": {
       "holding_sessions": 3,
-      "cash": 1000,
-      "positions": {},
+      "cash": 382.4080207996369,
+      "positions": {
+        "SAN.PA": {
+          "entry_date": "2026-11-16",
+          "entry_price": 88.0,
+          "shares": 2,
+          "stop": 85.22178322928292,
+          "target": 93.55643354143416,
+          "risk_per_share": 2.77821677071708,
+          "sessions_held": 1,
+          "strategy": "momentum",
+          "signal_date": "2026-11-13"
+        },
+        "UCG.MI": {
+          "entry_date": "2026-11-16",
+          "entry_price": 83.55000305175781,
+          "shares": 2,
+          "stop": 80.09572083609444,
+          "target": 90.45856748308455,
+          "risk_per_share": 3.454282215663369,
+          "sessions_held": 1,
+          "strategy": "momentum",
+          "signal_date": "2026-11-13"
+        },
+        "ENEL.MI": {
+          "entry_date": "2026-11-16",
+          "entry_price": 9.954999923706055,
+          "shares": 25,
+          "stop": 9.696357113974434,
+          "target": 10.472285543169296,
+          "risk_per_share": 0.25864280973162046,
+          "sessions_held": 1,
+          "strategy": "momentum",
+          "signal_date": "2026-11-13"
+        },
+        "ISP.MI": {
+          "entry_date": "2026-11-16",
+          "entry_price": 6.25,
+          "shares": 4,
+          "stop": 6.03175003187997,
+          "target": 6.686499936240059,
+          "risk_per_share": 0.2182499681200296,
+          "sessions_held": 1,
+          "strategy": "momentum",
+          "signal_date": "2026-11-13"
+        }
+      },
       "pending": [
         {
-          "symbol": "SAN.PA",
-          "atr": 1.852144513811384,
-          "score": 0.21768133863311467,
-          "signal_date": "2026-11-13"
-        },
-        {
           "symbol": "OR.PA",
-          "atr": 8.507149832589286,
-          "score": 0.10751109221095367,
-          "signal_date": "2026-11-13"
-        },
-        {
-          "symbol": "UCG.MI",
-          "atr": 2.3028548104422435,
-          "score": 0.098306833229592,
-          "signal_date": "2026-11-13"
-        },
-        {
-          "symbol": "ENEL.MI",
-          "atr": 0.1724285398210798,
-          "score": 0.08359634549770645,
-          "signal_date": "2026-11-13"
+          "atr": 8.300005231584821,
+          "score": 0.11533693530477684,
+          "signal_date": "2026-11-16"
         },
         {
           "symbol": "SAP.DE",
-          "atr": 5.514285496303013,
-          "score": 0.07142854954495537,
-          "signal_date": "2026-11-13"
-        },
-        {
-          "symbol": "RACE.MI",
-          "atr": 10.528570992606026,
-          "score": 0.0433561987507447,
-          "signal_date": "2026-11-13"
+          "atr": 5.467856270926339,
+          "score": 0.06785427245338038,
+          "signal_date": "2026-11-16"
         },
         {
           "symbol": "AIR.PA",
-          "atr": 5.761429922921317,
-          "score": 0.03938228691188583,
-          "signal_date": "2026-11-13"
+          "atr": 5.778573172433036,
+          "score": 0.050478531148768324,
+          "signal_date": "2026-11-16"
         },
         {
-          "symbol": "ISP.MI",
-          "atr": 0.14549997874668666,
-          "score": 0.01870531105714668,
-          "signal_date": "2026-11-13"
-        },
-        {
-          "symbol": "MC.PA",
-          "atr": 11.553567068917411,
-          "score": 0.016246882133579943,
-          "signal_date": "2026-11-13"
+          "symbol": "RACE.MI",
+          "atr": 10.542855398995536,
+          "score": 0.04259229526816477,
+          "signal_date": "2026-11-16"
         }
       ],
       "trades": [],
-      "last_processed_date": "2026-11-13",
-      "equity": 1000,
+      "last_processed_date": "2026-11-16",
+      "equity": 994.7,
       "last_prices": {
-        "ASML.AS": 1338.800048828125,
-        "SAP.DE": 213.4499969482422,
-        "MC.PA": 403.45001220703125,
-        "RACE.MI": 371.79998779296875,
-        "ENEL.MI": 9.954999923706055,
-        "ISP.MI": 6.263000011444092,
-        "UCG.MI": 83.68000030517578,
-        "STLAM.MI": 3.5179998874664307,
-        "AIR.PA": 206.64999389648438,
-        "SAN.PA": 87.5999984741211,
-        "OR.PA": 451.20001220703125
+        "ASML.AS": 1306.5999755859375,
+        "SAP.DE": 213.39999389648438,
+        "MC.PA": 404.0,
+        "RACE.MI": 368.3999938964844,
+        "ENEL.MI": 9.755000114440918,
+        "ISP.MI": 6.2779998779296875,
+        "UCG.MI": 83.33000183105469,
+        "STLAM.MI": 3.380000114440918,
+        "AIR.PA": 204.14999389648438,
+        "SAN.PA": 88.31999969482422,
+        "OR.PA": 450.1499938964844
       },
-      "sessions_elapsed": 0
+      "sessions_elapsed": 1
     },
     "pullback_reclaim": {
       "holding_sessions": 3,
@@ -86,65 +101,82 @@
       "positions": {},
       "pending": [],
       "trades": [],
-      "last_processed_date": "2026-11-13",
+      "last_processed_date": "2026-11-16",
       "equity": 1000,
       "last_prices": {
-        "ASML.AS": 1338.800048828125,
-        "SAP.DE": 213.4499969482422,
-        "MC.PA": 403.45001220703125,
-        "RACE.MI": 371.79998779296875,
-        "ENEL.MI": 9.954999923706055,
-        "ISP.MI": 6.263000011444092,
-        "UCG.MI": 83.68000030517578,
-        "STLAM.MI": 3.5179998874664307,
-        "AIR.PA": 206.64999389648438,
-        "SAN.PA": 87.5999984741211,
-        "OR.PA": 451.20001220703125
+        "ASML.AS": 1306.5999755859375,
+        "SAP.DE": 213.39999389648438,
+        "MC.PA": 404.0,
+        "RACE.MI": 368.3999938964844,
+        "ENEL.MI": 9.755000114440918,
+        "ISP.MI": 6.2779998779296875,
+        "UCG.MI": 83.33000183105469,
+        "STLAM.MI": 3.380000114440918,
+        "AIR.PA": 204.14999389648438,
+        "SAN.PA": 88.31999969482422,
+        "OR.PA": 450.1499938964844
       },
-      "sessions_elapsed": 0
+      "sessions_elapsed": 1
     },
     "regime_adaptive": {
       "holding_sessions": 5,
-      "cash": 1000,
-      "positions": {},
+      "cash": 618.5188938903809,
+      "positions": {
+        "UCG.MI": {
+          "entry_date": "2026-11-16",
+          "entry_price": 83.55000305175781,
+          "shares": 2,
+          "stop": 80.09572083609444,
+          "target": 90.45856748308455,
+          "risk_per_share": 3.454282215663369,
+          "sessions_held": 1,
+          "strategy": "regime_adaptive",
+          "signal_date": "2026-11-13"
+        },
+        "SAP.DE": {
+          "entry_date": "2026-11-16",
+          "entry_price": 214.0,
+          "shares": 1,
+          "stop": 205.7285717555455,
+          "target": 230.54285648890902,
+          "risk_per_share": 8.271428244454512,
+          "sessions_held": 1,
+          "strategy": "regime_adaptive",
+          "signal_date": "2026-11-13"
+        }
+      },
       "pending": [
         {
+          "symbol": "SAN.PA",
+          "atr": 1.8957159859793526,
+          "score": 11.356990628735215,
+          "signal_date": "2026-11-16"
+        },
+        {
           "symbol": "OR.PA",
-          "atr": 8.507149832589286,
-          "score": 5.70214549791338,
-          "signal_date": "2026-11-13"
-        },
-        {
-          "symbol": "UCG.MI",
-          "atr": 2.3028548104422435,
-          "score": 3.5722251343641283,
-          "signal_date": "2026-11-13"
-        },
-        {
-          "symbol": "SAP.DE",
-          "atr": 5.514285496303013,
-          "score": 2.7648955957412564,
-          "signal_date": "2026-11-13"
+          "atr": 8.300005231584821,
+          "score": 6.255287710652563,
+          "signal_date": "2026-11-16"
         }
       ],
       "trades": [],
-      "last_processed_date": "2026-11-13",
-      "equity": 1000,
+      "last_processed_date": "2026-11-16",
+      "equity": 998.58,
       "last_prices": {
-        "ASML.AS": 1338.800048828125,
-        "SAP.DE": 213.4499969482422,
-        "MC.PA": 403.45001220703125,
-        "RACE.MI": 371.79998779296875,
-        "ENEL.MI": 9.954999923706055,
-        "ISP.MI": 6.263000011444092,
-        "UCG.MI": 83.68000030517578,
-        "STLAM.MI": 3.5179998874664307,
-        "AIR.PA": 206.64999389648438,
-        "SAN.PA": 87.5999984741211,
-        "OR.PA": 451.20001220703125
+        "ASML.AS": 1306.5999755859375,
+        "SAP.DE": 213.39999389648438,
+        "MC.PA": 404.0,
+        "RACE.MI": 368.3999938964844,
+        "ENEL.MI": 9.755000114440918,
+        "ISP.MI": 6.2779998779296875,
+        "UCG.MI": 83.33000183105469,
+        "STLAM.MI": 3.380000114440918,
+        "AIR.PA": 204.14999389648438,
+        "SAN.PA": 88.31999969482422,
+        "OR.PA": 450.1499938964844
       },
-      "sessions_elapsed": 0
+      "sessions_elapsed": 1
     }
   },
-  "updated_at_utc": "2026-11-17T04:43:42.885296+00:00"
+  "updated_at_utc": "2026-11-18T03:49:13.698316+00:00"
 }
