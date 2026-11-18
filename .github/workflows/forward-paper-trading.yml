@@ -47,6 +47,7 @@ jobs:
             git push
           fi
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: forward-paper-trading-${{ github.run_number }}
           path: reports/paper-trading-latest.json
