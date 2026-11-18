@@ -288,7 +288,7 @@ def run(state_path: Path, universe_path: Path, output_path: Path) -> dict:
             f"{expected_date.isoformat()}. Ledger was not advanced."
         )
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(json.dumps(summary, indent=2) + "\\n", encoding="utf-8")
+        output_path.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
         return summary
 
     for strategy, holding in STRATEGIES.items():
