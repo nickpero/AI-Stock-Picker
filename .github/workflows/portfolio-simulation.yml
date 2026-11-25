@@ -10,7 +10,7 @@ on:
         description: "Run one market currency at a time (FX conversion is not included)"
         required: true
         type: choice
-        options: [EUR, USD, CHF]
+        options: [USD]
       period:
         description: "Historical window"
         required: true
@@ -53,11 +53,11 @@ jobs:
       - name: Run portfolio simulation
         env:
           SIM_PERIOD: ${{ inputs.period || '5y' }}
-          SIM_CURRENCY: ${{ inputs.currency || 'EUR' }}
+          SIM_CURRENCY: ${{ inputs.currency || 'USD' }}
           SIM_CAPITAL: ${{ inputs.capital || '1000' }}
           SIM_HOLDING: ${{ matrix.holding }}
           SIM_START_DATE: "2024-11-14"
-          SIM_MAX_POSITIONS: ${{ inputs.max_positions || '4' }}
+          SIM_MAX_POSITIONS: ${{ inputs.max_positions || '3' }}
           SIM_COST_BPS: ${{ inputs.cost_bps || '20' }}
           SIM_STRATEGY: ${{ matrix.strategy }}
         run: |
