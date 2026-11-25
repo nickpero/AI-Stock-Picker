@@ -20,7 +20,7 @@ STARTING_CAPITAL = 1000.0
 RISK_FRACTION = 0.01
 MAX_PORTFOLIO_RISK = 0.02
 MAX_POSITION_FRACTION = 0.25
-MAX_POSITIONS = 4
+MAX_POSITIONS = 3
 STOP_ATR = 1.5
 TARGET_R = 2.0
 ROUND_TRIP_COST_BPS = 20.0
@@ -31,7 +31,7 @@ def load_symbols(path: Path) -> list[str]:
     currencies = data.get("currencies", {})
     return [
         symbol for symbol in data.get("symbols", [])
-        if currencies.get(symbol) == "EUR"
+        if currencies.get(symbol) == "USD"
     ]
 
 
@@ -93,7 +93,7 @@ def _exit(portfolio: dict, symbol: str, day: pd.Timestamp, price: float, reason:
         "entry_price": round(pos["entry_price"], 6),
         "exit_price": round(price, 6),
         "shares": pos["shares"],
-        "pnl_eur": round(pnl, 4),
+        "pnl_usd": round(pnl, 4),
         "return_pct": round(pnl / (gross_entry * (1.0 + half_cost)) * 100.0, 4),
         "exit_reason": reason,
         "sessions_held": pos["sessions_held"],
@@ -226,7 +226,7 @@ def _process_day(portfolio: dict, strategy: str, holding: int,
 def run(state_path: Path, universe_path: Path, output_path: Path) -> dict:
     symbols = load_symbols(universe_path)
     if not symbols:
-        raise ValueError("No EUR-denominated symbols found in configured universe")
+        raise ValueError("No USD-denominated symbols found in configured universe")
     if state_path.exists():
         state = json.loads(state_path.read_text(encoding="utf-8"))
     else:
@@ -254,7 +254,7 @@ def run(state_path: Path, universe_path: Path, output_path: Path) -> dict:
 
     all_days = sorted(set().union(*(set(f.index) for group in frames.values() for f in group.values()))) if frames else []
     if not all_days:
-        raise RuntimeError("No valid EUR daily price history downloaded")
+        raise RuntimeError("No valid USD daily price history downloaded")
 
     generated_at = datetime.now(timezone.utc)
     expected_date = expected_latest_session(generated_at)
@@ -267,8 +267,8 @@ def run(state_path: Path, universe_path: Path, output_path: Path) -> dict:
         "data_as_of": latest_data_date.isoformat(),
         "data_freshness": "FRESH",
         "data_provider": "Yahoo Finance via yfinance; auto-adjusted daily OHLC",
-        "market_currency": "EUR only; USD and CHF symbols excluded to avoid FX assumptions",
-        "starting_capital_per_strategy_eur": STARTING_CAPITAL,
+        "market_currency": "USD only; non-USD symbols excluded to avoid FX assumptions",
+        "starting_capital_per_strategy_usd": STARTING_CAPITAL,
         "round_trip_cost_bps": ROUND_TRIP_COST_BPS,
         "risk_per_trade_pct": RISK_FRACTION * 100,
         "max_open_portfolio_risk_pct": MAX_PORTFOLIO_RISK * 100,
@@ -322,14 +322,14 @@ def run(state_path: Path, universe_path: Path, output_path: Path) -> dict:
             "sessions_elapsed": int(portfolio.get("sessions_elapsed", 0)),
             "target_sessions": 30,
             "last_processed_date": portfolio["last_processed_date"],
-            "equity_eur": round(portfolio["equity"], 2),
-            "cash_eur": round(portfolio["cash"], 2),
+            "equity_usd": round(portfolio["equity"], 2),
+            "cash_usd": round(portfolio["cash"], 2),
             "return_pct": round((portfolio["equity"] / STARTING_CAPITAL - 1) * 100, 3),
             "open_positions": open_positions,
             "pending_next_open": portfolio["pending"],
             "closed_trades": len(portfolio["trades"]),
-            "wins": sum(1 for t in portfolio["trades"] if t["pnl_eur"] > 0),
-            "realized_pnl_eur": round(sum(t["pnl_eur"] for t in portfolio["trades"]), 2),
+            "wins": sum(1 for t in portfolio["trades"] if t["pnl_usd"] > 0),
+            "realized_pnl_usd": round(sum(t["pnl_usd"] for t in portfolio["trades"]), 2),
             "recent_trades": portfolio["trades"][-20:],
         }
 
