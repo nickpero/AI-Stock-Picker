@@ -1,5 +1,5 @@
 {
-  "description": "Starter watchlist only; expand to a liquid, point-in-time US and European universe before production use.",
+  "description": "US-listed USD equities starter watchlist. Expand only after liquidity and point-in-time universe validation.",
   "symbols": [
     "AAPL",
     "MSFT",
@@ -8,19 +8,7 @@
     "META",
     "TSLA",
     "LLY",
-    "NVO",
-    "ASML.AS",
-    "SAP.DE",
-    "MC.PA",
-    "RACE.MI",
-    "ENEL.MI",
-    "ISP.MI",
-    "UCG.MI",
-    "STLAM.MI",
-    "AIR.PA",
-    "SAN.PA",
-    "OR.PA",
-    "NESN.SW"
+    "NVO"
   ],
   "currencies": {
     "AAPL": "USD",
@@ -30,18 +18,6 @@
     "META": "USD",
     "TSLA": "USD",
     "LLY": "USD",
-    "NVO": "USD",
-    "ASML.AS": "EUR",
-    "SAP.DE": "EUR",
-    "MC.PA": "EUR",
-    "RACE.MI": "EUR",
-    "ENEL.MI": "EUR",
-    "ISP.MI": "EUR",
-    "UCG.MI": "EUR",
-    "STLAM.MI": "EUR",
-    "AIR.PA": "EUR",
-    "SAN.PA": "EUR",
-    "OR.PA": "EUR",
-    "NESN.SW": "CHF"
+    "NVO": "USD"
   }
 }
