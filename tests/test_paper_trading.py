@@ -2,7 +2,9 @@ import json
 from pathlib import Path
 from datetime import datetime, timezone
 
-from stock_picker.paper_trading import STRATEGIES, empty_state, expected_latest_session, load_symbols
+from stock_picker.paper_trading import (
+    STRATEGIES, empty_state, expected_latest_session, find_stale_symbols, load_symbols,
+)
 
 
 def test_paper_state_has_three_independent_portfolios():
@@ -42,3 +44,14 @@ def test_expected_latest_session_handles_delayed_runs_and_weekends():
 def test_expected_latest_session_after_close_uses_current_weekday():
     monday_after_close = datetime(2026, 11, 16, 22, 30, tzinfo=timezone.utc)
     assert expected_latest_session(monday_after_close).isoformat() == "2026-11-16"
+
+
+def test_data_freshness_requires_every_configured_symbol_to_be_current():
+    expected = datetime(2026, 11, 24).date()
+    assert find_stale_symbols({"AAPL": expected, "MSFT": expected}, expected) == {}
+    assert find_stale_symbols(
+        {"AAPL": expected, "MSFT": datetime(2026, 11, 23).date()}, expected
+    ) == {"MSFT": "2026-11-23"}
+    assert find_stale_symbols({"AAPL": expected, "NVDA": None}, expected) == {
+        "NVDA": "MISSING"
+    }
