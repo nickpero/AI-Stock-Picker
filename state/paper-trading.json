@@ -7,12 +7,34 @@
       "holding_sessions": 3,
       "cash": 1000,
       "positions": {},
-      "pending": [],
+      "pending": [
+        {
+          "symbol": "NVO",
+          "atr": 1.216428484235491,
+          "score": 0.06777219493232067,
+          "signal_date": "2026-11-25"
+        },
+        {
+          "symbol": "AAPL",
+          "atr": 8.004676864994853,
+          "score": 0.03071015654818887,
+          "signal_date": "2026-11-25"
+        }
+      ],
       "trades": [],
-      "last_processed_date": null,
-      "sessions_elapsed": 0,
+      "last_processed_date": "2026-11-25",
+      "sessions_elapsed": 1,
       "equity": 1000,
-      "last_prices": {}
+      "last_prices": {
+        "AAPL": 354.1199951171875,
+        "MSFT": 489.0400085449219,
+        "NVDA": 147.47000122070312,
+        "AMZN": 244.6999969482422,
+        "META": 603.239990234375,
+        "TSLA": 380.2330017089844,
+        "LLY": 1397.530029296875,
+        "NVO": 40.8849983215332
+      }
     },
     "pullback_reclaim": {
       "holding_sessions": 3,
@@ -20,21 +42,47 @@
       "positions": {},
       "pending": [],
       "trades": [],
-      "last_processed_date": null,
-      "sessions_elapsed": 0,
+      "last_processed_date": "2026-11-25",
+      "sessions_elapsed": 1,
       "equity": 1000,
-      "last_prices": {}
+      "last_prices": {
+        "AAPL": 354.1199951171875,
+        "MSFT": 489.0400085449219,
+        "NVDA": 147.47000122070312,
+        "AMZN": 244.6999969482422,
+        "META": 603.239990234375,
+        "TSLA": 380.2330017089844,
+        "LLY": 1397.530029296875,
+        "NVO": 40.8849983215332
+      }
     },
     "regime_adaptive": {
       "holding_sessions": 5,
       "cash": 1000,
       "positions": {},
-      "pending": [],
+      "pending": [
+        {
+          "symbol": "AAPL",
+          "atr": 8.004676864994853,
+          "score": 1.3585908176319246,
+          "signal_date": "2026-11-25"
+        }
+      ],
       "trades": [],
-      "last_processed_date": null,
-      "sessions_elapsed": 0,
+      "last_processed_date": "2026-11-25",
+      "sessions_elapsed": 1,
       "equity": 1000,
-      "last_prices": {}
+      "last_prices": {
+        "AAPL": 354.1199951171875,
+        "MSFT": 489.0400085449219,
+        "NVDA": 147.47000122070312,
+        "AMZN": 244.6999969482422,
+        "META": 603.239990234375,
+        "TSLA": 380.2330017089844,
+        "LLY": 1397.530029296875,
+        "NVO": 40.8849983215332
+      }
     }
-  }
+  },
+  "updated_at_utc": "2026-11-25T20:42:26.798061+00:00"
 }
