@@ -12,7 +12,7 @@ Independent research and decision-support engine for short-term equity setups (2
 The project-specific translation of the principles in *I 7 errori - Stock Mastery* is documented in [`docs/investment-discipline-policy.md`](docs/investment-discipline-policy.md). It preserves the 2–15-session trading scope and keeps long-term fundamental investing rules separate from tactical entry signals.
 
 ## Current MVP
-- Configurable starter watchlist for US and European equities (`config/universe.json`).
+- US-listed USD starter watchlist only (`config/universe.json`).
 - Yahoo Finance historical OHLCV adapter (`yfinance`).
 - Transparent technical ranking using 5/20-session momentum, moving-average trend, relative volume, and ATR-based volatility penalty.
 - Illustrative ATR-based stop/targets and share sizing, capped by account-risk and concentration limits.
@@ -37,13 +37,13 @@ pytest -q
 
 1. Open the repository's **Actions** tab.
 2. Select **Portfolio Simulation** and choose **Run workflow**.
-3. Select one currency (EUR, USD or CHF), strategy (momentum, breakout or pullback_reclaim), historical period, starting capital, holding period, maximum open positions and estimated transaction costs.
+3. Select the strategy (momentum, breakout or pullback_reclaim), historical period, starting capital, holding period, maximum open positions and estimated transaction costs.
 4. When the workflow finishes, download the `portfolio-simulation-...` artifact. It contains the JSON report, including the equity curve and trade-by-trade details.
 
-Run one currency at a time. Results from separate currencies must not be added together until FX conversion is implemented. The workflow downloads historical data from Yahoo Finance at run time; missing symbols and download errors are listed in the report.
+This project is configured for US-listed USD equities only. FX conversion is not implemented. The workflow downloads historical data from Yahoo Finance at run time; missing symbols and download errors are listed in the report.
 
 ## Current limitations
-- The universe is a small starter watchlist, not a complete US/EU market scan.
+- The universe is a small US starter watchlist, not a complete US market scan.
 - Yahoo Finance coverage, timestamps, corporate actions, and symbol mapping can be incomplete or delayed.
 - The scoring weights are heuristic and have not been optimized or validated for predictive performance.
 - Execution follows market phases: prior-close signal, next-open fill, opening-gap exits, then intraday stop/target checks; daily OHLC still cannot reconstruct intraday sequencing, so stop is assumed first if both levels trade.
@@ -53,7 +53,7 @@ Run one currency at a time. Results from separate currencies must not be added t
 - Trade plans are illustrative calculations based on the latest historical close, not live executable orders.
 
 ## Next milestones
-1. Validate data quality and broaden a liquid, survivorship-aware US/EU universe.
+1. Validate data quality and broaden a liquid, survivorship-aware US universe.
 2. Add news/catalyst ingestion with timestamped primary sources.
 3. Run all four signal modes on identical periods and compare them with the equal-weight benchmark.
 4. Add walk-forward and out-of-sample evaluation before any paper-trading use.
