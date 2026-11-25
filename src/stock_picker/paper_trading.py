@@ -50,6 +50,15 @@ def expected_latest_session(now: datetime | None = None) -> date:
     return candidate
 
 
+def find_stale_symbols(symbol_latest_dates: dict[str, date | None], expected_date: date) -> dict[str, str]:
+    """Return configured symbols without a valid bar for the expected session."""
+    return {
+        symbol: "MISSING" if latest is None else latest.isoformat()
+        for symbol, latest in symbol_latest_dates.items()
+        if latest is None or latest < expected_date
+    }
+
+
 def empty_state() -> dict:
     return {
         "schema_version": 1,
@@ -259,6 +268,14 @@ def run(state_path: Path, universe_path: Path, output_path: Path) -> dict:
     generated_at = datetime.now(timezone.utc)
     expected_date = expected_latest_session(generated_at)
     latest_data_date = max(d.date() for d in all_days)
+    # Validate every configured symbol, not merely the newest date in the union.
+    # A fresh AAPL bar must not mask a stale/missing NVDA bar and advance its ledger.
+    momentum_frames = frames.get("momentum", {})
+    symbol_latest_dates = {
+        symbol: (momentum_frames[symbol].index[-1].date() if symbol in momentum_frames else None)
+        for symbol in symbols
+    }
+    stale_symbols = find_stale_symbols(symbol_latest_dates, expected_date)
 
     summary = {
         "generated_at_utc": generated_at.isoformat(),
@@ -279,13 +296,14 @@ def run(state_path: Path, universe_path: Path, output_path: Path) -> dict:
         "disclaimer": "Paper trading only. Signals after close, simulated fills at next available open. Not investment advice or live execution.",
     }
 
-    if latest_data_date < expected_date:
+    if stale_symbols:
         summary["status"] = "STALE_DATA"
         summary["data_freshness"] = "STALE"
+        summary["stale_symbols"] = stale_symbols
         summary["stale_data_reason"] = (
-            f"Latest Yahoo Finance bar is {latest_data_date.isoformat()}, "
-            f"but the latest expected completed weekday session is "
-            f"{expected_date.isoformat()}. Ledger was not advanced."
+            "At least one configured symbol has no valid Yahoo Finance bar "
+            f"through the latest expected completed weekday session ({expected_date.isoformat()}). "
+            "Ledger was not advanced."
         )
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
